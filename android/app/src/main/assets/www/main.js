@@ -4,10 +4,13 @@ const config = {
     parent: 'game-container',
     width: window.innerWidth,
     height: window.innerHeight,
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff', // 기본 배경을 흰색으로 변경
     physics: {
         default: 'arcade',
-        arcade: { gravity: { y: 0 } }
+        arcade: { 
+            gravity: { y: 1000 }, // 중력 추가
+            debug: false 
+        }
     },
     scene: {
         preload: preload,
@@ -20,106 +23,232 @@ const game = new Phaser.Game(config);
 
 // 전역 변수 설정
 let cursors;
-let player;
+let groom;
+let bride;
 let bgLayers = [];
+let isMeeting = false; // 신부를 만났는지 여부
+
+// --- 가상 컨트롤러 변수 ---
+let joystickBase;
+let joystickThumb;
+let buttonA;
+let buttonB;
+let joystickPoint = { x: 0, y: 0 };
+let joystickPointer = null; // 조이스틱을 잡은 특정 포인터 저장
+const joystickRadius = 60;
+// -----------------------
+
+// --- 게임 밸런스 조절 변수 ---
+const moveSpeed = 4;           // 캐릭터 이동 속도
+const pixelsPerDay = 20;       // 1일이 흐르기 위해 이동해야 하는 픽셀 거리
+// -----------------------
+
 const startDate = new Date("2018-02-15");
 const dateDisplay = document.getElementById('date-display');
 
 function preload() {
-    this.load.svg('bride', '../design/bride_160_cute.svg');
-    this.load.svg('groom', '../design/groom_160_cute.svg');
+    this.load.svg('bride', 'assets/bride_160_cute.svg');
+    this.load.svg('groom', 'assets/groom_160_cute.svg');
 }
 
 function create() {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // 1. 패럴랙스 배경 레이어 생성 (가장 먼 곳부터)
-    // Layer 0: 하늘 (그라데이션 느낌)
+    // 1. 패럴랙스 배경 레이어 (밝은 하늘색 그라데이션)
     const sky = this.add.graphics();
-    sky.fillGradientStyle(0x001a33, 0x001a33, 0x003366, 0x003366, 1);
-    sky.fillRect(0, 0, width * 10, height);
+    sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xE0F7FA, 0xE0F7FA, 1); // SkyBlue -> LightCyan
+    sky.fillRect(0, 0, width * 20, height);
     bgLayers.push({ obj: sky, speed: 0 });
 
-    // Layer 1: 아주 먼 건물 실루엣 (독산역 인근 공장지대 느낌)
-    for (let i = 0; i < 20; i++) {
-        const h = 100 + Math.random() * 200;
-        const b = this.add.rectangle(i * 300, height - h - 100, 200, h, 0x1a1a2e).setOrigin(0, 0);
-        bgLayers.push({ obj: b, speed: 0.2 });
-    }
+    // 2. 바닥 (밝은 회색 승강장)
+    const ground = this.add.rectangle(0, height - 100, width * 20, 100, 0xeeeeee).setOrigin(0, 0);
+    this.physics.add.existing(ground, true); // 정적 물리 객체로 생성
 
-    // Layer 2: 중간 건물 (디테일 추가)
-    for (let i = 0; i < 15; i++) {
-        const h = 150 + Math.random() * 150;
-        const b = this.add.rectangle(i * 500, height - h - 50, 300, h, 0x16213e).setOrigin(0, 0);
-        bgLayers.push({ obj: b, speed: 0.5 });
-    }
+    // 3. 신부 배치
+    bride = this.add.image(2000, height - 180, 'bride').setScale(0.8);
+    this.physics.add.existing(bride);
+    bride.body.setAllowGravity(false); // 신부는 아직 중력의 영향을 받지 않게 함
+    bride.alpha = 0.5;
 
-    // Layer 3: 바닥/플랫폼 (독산역 승강장)
-    const ground = this.add.rectangle(0, height - 100, width * 10, 100, 0x333333).setOrigin(0, 0);
-    this.physics.add.existing(ground, true);
-    bgLayers.push({ obj: ground, speed: 1 });
+    // 4. 신랑 등장
+    groom = this.add.image(200, height - 180, 'groom').setScale(0.8);
+    this.physics.add.existing(groom);
+    groom.body.setCollideWorldBounds(false); // 카메라이동을 위해 월드 바운드 충돌은 끔
 
-    // 2. 캐릭터 그룹 생성 (신랑, 신부)
-    // 캐릭터들을 하나의 컨테이너에 담아 같이 움직이게 합니다.
-    this.playerContainer = this.add.container(200, height - 180);
-    const groomImg = this.add.image(-40, 0, 'groom').setScale(0.8);
-    const brideImg = this.add.image(40, 0, 'bride').setScale(0.8);
-    this.playerContainer.add([groomImg, brideImg]);
+    // 바닥과의 충돌 설정
+    this.physics.add.collider(groom, ground);
+    this.physics.add.collider(bride, ground);
     
-    // 물성치 부여
-    this.physics.world.enable(this.playerContainer);
-    this.playerContainer.body.setCollideWorldBounds(false);
-
-    // 3. 조작 설정
-    cursors = this.input.keyboard.createCursorKeys();
-
-    // 카메라 설정 (캐릭터를 따라다니되, X축만 따라감)
-    this.cameras.main.startFollow(this.playerContainer, true, 0.1, 0.1);
+    // 5. 카메라 설정
+    this.cameras.main.startFollow(groom, true, 0.1, 0.1);
     this.cameras.main.setFollowOffset(-200, 0);
-}
 
-function update() {
-    const moveSpeed = 5;
-    let isMoving = false;
-
-    // 키보드 입력 처리
-    if (cursors.left.isDown) {
-        this.playerContainer.x -= moveSpeed;
-        isMoving = true;
-    } else if (cursors.right.isDown) {
-        this.playerContainer.x += moveSpeed;
-        isMoving = true;
-    }
-
-    // 패럴랙스 효과 적용
-    bgLayers.forEach(layer => {
-        // 카메라의 이동량에 맞춰 레이어마다 다른 속도로 이동
-        if (layer.speed > 0) {
-            // 레이어의 위치를 카메라의 위치와 반비례하게 조절
-            // 실제 구현 시에는 TileSprite를 쓰면 더 좋지만 일단 원리를 위해 이렇게 구현
+    // 6. 충돌/만남 감지
+    this.physics.add.overlap(groom, bride, () => {
+        if (!isMeeting) {
+            isMeeting = true;
+            bride.alpha = 1.0;
         }
     });
 
-    // 캐릭터 호흡 애니메이션
-    const time = this.time.now / 300;
-    this.playerContainer.list[0].y = Math.sin(time) * 3; // 신랑
-    this.playerContainer.list[1].y = Math.cos(time) * 3; // 신부
+    // 7. 가상 컨트롤러 생성 (UI는 카메라에 고정되어야 함)
+    setupVirtualController.call(this);
 
-    // 이동 시 걷는 애니메이션 느낌 (살짝 좌우로 흔들림)
-    if (isMoving) {
-        this.playerContainer.angle = Math.sin(this.time.now / 50) * 2;
-    } else {
-        this.playerContainer.angle = 0;
+    cursors = this.input.keyboard.createCursorKeys();
+}
+
+function setupVirtualController() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    const padding = 100; // 구석에서의 여백
+    
+    // 조이스틱 베이스 (고정)
+    joystickBase = this.add.circle(padding, height - padding, joystickRadius, 0xffffff, 0.4)
+        .setStrokeStyle(4, 0x000000, 0.3) // 연한 검정 테두리 추가
+        .setScrollFactor(0)
+        .setDepth(100);
+    
+    // 조이스틱 썸 (움직임)
+    joystickThumb = this.add.circle(padding, height - padding, 30, 0xffffff, 0.8)
+        .setStrokeStyle(2, 0x000000, 0.5) // 테두리 추가
+        .setScrollFactor(0)
+        .setDepth(101);
+
+    // 버튼 A -> JUMP (우측 하단)
+    buttonA = this.add.circle(width - padding, height - padding, 45, 0xffffff, 0.6)
+        .setStrokeStyle(4, 0x000000, 0.5)
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setInteractive();
+    this.add.text(width - padding, height - padding, 'JUMP', { 
+        fontSize: '24px', // 글자 수가 늘어나서 폰트 크기 살짝 조정
+        color: '#000',
+        fontWeight: 'bold' 
+    })
+    .setOrigin(0.5)
+    .setScrollFactor(0)
+    .setDepth(101);
+
+    // 버튼 A(JUMP) 클릭 이벤트
+    buttonA.on('pointerdown', () => {
+        if (groom.body.touching.down || groom.body.blocked.down) {
+            groom.body.setVelocityY(-550); // 위로 점프
+        }
+    });
+
+    // 버튼 B (우측 하단 옆)
+    buttonB = this.add.circle(width - (padding * 2) - 20, height - padding, 45, 0xffffff, 0.6)
+        .setStrokeStyle(4, 0x000000, 0.5) // 테두리 추가
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setInteractive();
+    this.add.text(width - (padding * 2) - 20, height - padding, 'B', { 
+        fontSize: '36px', 
+        color: '#000', // 검정색 글자로 변경
+        fontWeight: 'bold' 
+    })
+    .setOrigin(0.5)
+    .setScrollFactor(0)
+    .setDepth(101);
+
+    // 터치 이벤트 리스너
+    this.input.on('pointerdown', (pointer) => {
+        // 왼쪽 화면 터치 시 조이스틱 활성화
+        if (pointer.x < width / 2 && joystickPointer === null) {
+            joystickPointer = pointer;
+            updateJoystick(pointer);
+        }
+    });
+
+    this.input.on('pointermove', (pointer) => {
+        // 조이스틱 포인터가 존재하고, 해당 포인터의 움직임일 때만 업데이트
+        if (joystickPointer && pointer.id === joystickPointer.id) {
+            updateJoystick(pointer);
+        }
+    });
+
+    this.input.on('pointerup', (pointer) => {
+        // 조이스틱을 잡았던 포인터가 떼어졌을 때만 초기화
+        if (joystickPointer && pointer.id === joystickPointer.id) {
+            joystickPointer = null;
+            joystickThumb.x = padding;
+            joystickThumb.y = height - padding;
+            joystickPoint = { x: 0, y: 0 };
+        }
+    });
+
+    function updateJoystick(pointer) {
+        const centerX = padding;
+        const centerY = height - padding;
+        const dist = Phaser.Math.Distance.Between(centerX, centerY, pointer.x, pointer.y);
+        const angle = Phaser.Math.Angle.Between(centerX, centerY, pointer.x, pointer.y);
+
+        if (dist <= joystickRadius) {
+            joystickThumb.x = pointer.x;
+            joystickThumb.y = pointer.y;
+        } else {
+            joystickThumb.x = centerX + Math.cos(angle) * joystickRadius;
+            joystickThumb.y = centerY + Math.sin(angle) * joystickRadius;
+        }
+
+        // 정규화된 방향 벡터 (-1 ~ 1)
+        joystickPoint.x = (joystickThumb.x - centerX) / joystickRadius;
+        joystickPoint.y = (joystickThumb.y - centerY) / joystickRadius;
+    }
+}
+
+function update() {
+    let isMoving = false;
+    let velocityX = 0;
+
+    // 1. 이동 제어 (조이스틱 또는 키보드)
+    if (cursors.left.isDown || joystickPoint.x < -0.3) {
+        velocityX = -moveSpeed * 60; // 속도 기반 이동으로 변경
+        groom.flipX = true;
+        isMoving = true;
+    } else if (cursors.right.isDown || joystickPoint.x > 0.3) {
+        velocityX = moveSpeed * 60;
+        groom.flipX = false;
+        isMoving = true;
     }
 
-    // 상단 날짜 업데이트 로직
-    updateDateDisplay(this.playerContainer.x);
+    groom.body.setVelocityX(velocityX);
+
+    // 키보드 스페이스바 점프 추가
+    if (cursors.space.isDown && (groom.body.touching.down || groom.body.blocked.down)) {
+        groom.body.setVelocityY(-550);
+    }
+
+    // 1-1. 왼쪽 이동 제한 (시작 지점 200보다 왼쪽으로 못 가게 함)
+    if (groom.x < 200) {
+        groom.x = 200;
+        isMoving = false; // 벽에 막혔으므로 이동 중이 아님으로 처리
+    }
+
+    // 2. 신부를 만났다면 같이 이동
+    if (isMeeting) {
+        bride.body.setAllowGravity(true); // 만난 후에는 신부도 중력 적용
+        
+        // 신랑의 좌우에 따라 신부 위치 조정
+        const targetX = groom.x + (groom.flipX ? 80 : -80);
+        bride.x = Phaser.Math.Linear(bride.x, targetX, 0.2); // 부드럽게 따라오게 함
+        bride.flipX = groom.flipX;
+    }
+
+    // 3. 애니메이션
+    if (isMoving && (groom.body.touching.down || groom.body.blocked.down)) {
+        // 바닥에 있을 때만 걷기 애니메이션 (각도 흔들기)
+        groom.angle = Math.sin(this.time.now / 50) * 3;
+    } else {
+        groom.angle = 0;
+    }
+
+    updateDateDisplay(groom.x);
 }
 
 function updateDateDisplay(playerX) {
-    // 거리에 비례하여 날짜 계산 (10px 당 1일 정도로 설정)
-    const daysToAdd = Math.floor(Math.max(0, playerX - 200) / 10);
+    const daysToAdd = Math.floor(Math.max(0, playerX - 200) / pixelsPerDay);
     const currentDate = new Date(startDate);
     currentDate.setDate(startDate.getDate() + daysToAdd);
 

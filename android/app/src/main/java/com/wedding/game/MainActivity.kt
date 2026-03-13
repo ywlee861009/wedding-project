@@ -2,6 +2,9 @@ package com.wedding.game
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +24,9 @@ class MainActivity : AppCompatActivity() {
         // Edge-to-Edge 설정
         enableEdgeToEdge()
         
+        // 크롬 원격 디버깅 활성화 (PC 크롬 브라우저에서 inspect 가능)
+        WebView.setWebContentsDebuggingEnabled(true)
+        
         webView = WebView(this)
         setContentView(webView)
 
@@ -37,6 +43,21 @@ class MainActivity : AppCompatActivity() {
             useWideViewPort = true
             displayZoomControls = false
             builtInZoomControls = false
+        }
+
+        // WebChromeClient 설정: JS console.log를 Logcat으로 전달
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                consoleMessage?.apply {
+                    val logMsg = "${message()} -- From line ${lineNumber()} of ${sourceId()}"
+                    when (messageLevel()) {
+                        ConsoleMessage.MessageLevel.ERROR -> Log.e("WebViewConsole", logMsg)
+                        ConsoleMessage.MessageLevel.WARNING -> Log.w("WebViewConsole", logMsg)
+                        else -> Log.d("WebViewConsole", logMsg)
+                    }
+                }
+                return true
+            }
         }
 
         // 로컬 파일 로드
