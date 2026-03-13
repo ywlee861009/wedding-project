@@ -1,127 +1,95 @@
 (async () => {
-    // 1. Pixi Application 초기화
     const app = new PIXI.Application();
     await app.init({
         resizeTo: window,
-        backgroundColor: 0xfdfdfd,
+        backgroundColor: 0x050508, // 아주 어두운 남색 (심야의 독산역)
         antialias: true,
-        autoDensity: true,
         resolution: window.devicePixelRatio || 1,
     });
     document.getElementById('game-container').appendChild(app.canvas);
 
-    // 2. 2.5D 레이어 구성
     const layers = {
         sky: new PIXI.Container(),     
-        far: new PIXI.Container(),     
-        mid: new PIXI.Container(),     
+        bgFar: new PIXI.Container(),   
+        bgMid: new PIXI.Container(),   
         main: new PIXI.Container(),    
-        near: new PIXI.Container()     
+        fgNear: new PIXI.Container(),  
+        ui: new PIXI.Container()
     };
     Object.values(layers).forEach(layer => app.stage.addChild(layer));
 
-    // 3. 바닥(Ground)과 배경 요소 추가 (움직임을 느끼기 위해)
-    const groundHeight = 100;
-    const ground = new PIXI.Graphics()
-        .rect(0, 0, 100000, groundHeight)
-        .fill({ color: 0xeeeeee });
-    ground.y = window.innerHeight - groundHeight;
-    layers.main.addChild(ground);
-
-    // 가로등/나무 같은 참조 포인트들 생성 (일정한 간격으로)
-    for (let i = 0; i < 100; i++) {
-        const refPoint = new PIXI.Graphics()
-            .rect(0, 0, 10, 200)
-            .fill({ color: 0xdddddd });
-        refPoint.x = i * 800;
-        refPoint.y = window.innerHeight - groundHeight - 200;
-        layers.mid.addChild(refPoint);
+    // 1. 프로시저럴 독산역 구조물 (도형으로 구현)
+    function createStation(x) {
+        const station = new PIXI.Container();
+        // 기둥들
+        for(let i=0; i<3; i++) {
+            const pillar = new PIXI.Graphics().rect(i*300, 0, 40, 600).fill({ color: 0x111115 });
+            station.addChild(pillar);
+        }
+        // 천장 구조물
+        const roof = new PIXI.Graphics().rect(-50, 0, 1000, 60).fill({ color: 0x0a0a0c });
+        station.addChild(roof);
+        
+        station.x = x;
+        station.y = window.innerHeight * 0.1;
+        return station;
     }
+    layers.bgMid.addChild(createStation(500));
 
-    // 4. 캐릭터 생성 (위치 조정)
-    const groom = new PIXI.Graphics()
-        .rect(-30, -120, 60, 120)
-        .fill({ color: 0x818cf8 }); 
-    
-    const bride = new PIXI.Graphics()
-        .rect(-30, -120, 60, 120)
-        .fill({ color: 0xf472b6 }); 
+    // 2. 가로등 효과 (Glow)
+    function createLamp(x) {
+        const lamp = new PIXI.Container();
+        // 등대 기둥
+        const pole = new PIXI.Graphics().rect(0, 0, 4, 300).fill({ color: 0x111111 });
+        // 불빛 (그라데이션 대신 여러 겹의 원으로 광원 표현)
+        const light = new PIXI.Graphics();
+        for(let i=0; i<5; i++) {
+            light.circle(2, 0, 20 + i*20).fill({ color: 0xffcc00, alpha: 0.15 - i*0.02 });
+        }
+        lamp.addChild(pole, light);
+        lamp.x = x;
+        lamp.y = window.innerHeight * 0.7 - 300;
+        return lamp;
+    }
+    for(let i=0; i<10; i++) layers.bgMid.addChild(createLamp(i * 1200 + 400));
 
-    groom.x = 300;
-    groom.y = window.innerHeight - groundHeight;
-    bride.x = 400;
-    bride.y = window.innerHeight - groundHeight;
-
+    // 3. 캐릭터 (실루엣 + 은은한 테두리 빛)
+    const groom = new PIXI.Graphics().rect(-25, -110, 50, 110).fill({ color: 0x818cf8, alpha: 0.8 });
+    const bride = new PIXI.Graphics().rect(-25, -110, 50, 110).fill({ color: 0xf472b6, alpha: 0.8 });
+    groom.x = 400; bride.x = 500;
     layers.main.addChild(groom, bride);
 
-    // 5. 컨트롤 시스템 (Wheel + Keyboard)
+    // 4. 정보 팝업 예시 (특정 위치 도달 시 등장할 요소)
+    const infoText = new PIXI.Text({
+        text: "2018. 02. 15\n독산역에서의 첫 만남",
+        style: { fill: "#ffffff", fontSize: 24, fontStyle: 'italic', align: 'center', alpha: 0 }
+    });
+    infoText.x = 800;
+    infoText.y = window.innerHeight * 0.4;
+    layers.main.addChild(infoText);
+
+    // 5. 무한 스크롤 및 패럴랙스
+    let scrollX = 0;
     let targetScrollX = 0;
-    let currentScrollX = 0;
-    const keys = {};
+    window.addEventListener('wheel', (e) => { targetScrollX += e.deltaY; if(targetScrollX < 0) targetScrollX = 0; });
 
-    window.addEventListener('keydown', (e) => { keys[e.code] = true; });
-    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-
-    window.addEventListener('wheel', (e) => {
-        targetScrollX += e.deltaY;
-        if (targetScrollX < 0) targetScrollX = 0;
-    });
-
-    // 6. 게임 루프 (애니메이션)
-    app.ticker.add((ticker) => {
-        // 키보드 입력 처리
-        if (keys['ArrowRight'] || keys['KeyD']) targetScrollX += 15;
-        if (keys['ArrowLeft'] || keys['KeyA']) targetScrollX -= 15;
+    app.ticker.add(() => {
+        scrollX += (targetScrollX - scrollX) * 0.05;
         
-        if (targetScrollX < 0) targetScrollX = 0;
+        layers.bgFar.x = -scrollX * 0.2;
+        layers.bgMid.x = -scrollX * 0.5;
+        layers.main.x = -scrollX * 1.0;
+        layers.fgNear.x = -scrollX * 2.5;
 
-        // 부드러운 이동 (Lerp)
-        currentScrollX += (targetScrollX - currentScrollX) * 0.1;
+        // 특정 위치 도달 시 텍스트 서서히 나타나기 (Fade-in)
+        if (scrollX > 400) infoText.alpha += (1 - infoText.alpha) * 0.05;
 
-        // 레이어별 패럴랙스 (2.5D 효과)
-        layers.sky.x = -currentScrollX * 0.05;
-        layers.far.x = -currentScrollX * 0.2;
-        layers.mid.x = -currentScrollX * 0.5;
-        layers.main.x = -currentScrollX * 1.0;
-        layers.near.x = -currentScrollX * 1.5;
-
-        // 캐릭터 애니메이션 (움직일 때 살짝 위아래로 흔들림)
-        const moveDiff = Math.abs(targetScrollX - currentScrollX);
-        if (moveDiff > 1) {
-            const bounce = Math.sin(Date.now() * 0.01) * 5;
-            groom.y = window.innerHeight - groundHeight + bounce;
-            bride.y = window.innerHeight - groundHeight + bounce;
-        } else {
-            groom.y = window.innerHeight - groundHeight;
-            bride.y = window.innerHeight - groundHeight;
-        }
-
-        // 날짜 업데이트
-        updateDate(currentScrollX);
-    });
-
-    // 7. 날짜 업데이트 로직
-    const startDate = new Date('2018-02-15');
-    const dateEl = document.getElementById('current-date');
-
-    function updateDate(distance) {
-        const daysToAdd = Math.floor(distance / 100); 
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + daysToAdd);
-        
-        const y = currentDate.getFullYear();
-        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const d = String(currentDate.getDate()).padStart(2, '0');
-        
-        dateEl.innerText = `${y}. ${m}. ${d}`;
-    }
-
-    // 창 크기 조절 대응
-    window.addEventListener('resize', () => {
-        app.renderer.resize(window.innerWidth, window.innerHeight);
-        ground.y = window.innerHeight - groundHeight;
-        groom.y = window.innerHeight - groundHeight;
-        bride.y = window.innerHeight - groundHeight;
+        // 날짜 업데이트 (상단 UI)
+        const days = Math.floor(scrollX / 100);
+        const date = new Date('2018-02-15');
+        date.setDate(date.getDate() + days);
+        document.getElementById('current-date').innerText = 
+            `${date.getFullYear()}. ${String(date.getMonth()+1).padStart(2,'0')}. ${String(date.getDate()).padStart(2,'0')}`;
     });
 
 })();

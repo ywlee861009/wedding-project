@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>💍 3D Wedding Journey - Stable Version</title>
+    <!-- 가장 안정적인 전역 라이브러리 방식 -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; }
+        #ui-overlay {
+            position: fixed; top: 20px; left: 20px; color: #333;
+            background: rgba(255, 255, 255, 0.85); padding: 15px;
+            border-radius: 12px; font-family: sans-serif; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        #status-log { font-size: 12px; color: #0077ff; font-weight: bold; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay">
+        <h2 style="margin:0">💍 3D Wedding Journey</h2>
+        <p style="margin:5px 0">WASD: 이동 | Space: 점프</p>
+        <div id="status-log">초기화 준비 중...</div>
+    </div>
+    <!-- 모듈이 아닌 일반 스크립트로 로드 -->
+    <script src="main.js"></script>
+</body>
+</html>
