@@ -36,13 +36,21 @@ class MainActivity : AppCompatActivity() {
         // WebView 설정
         with(webView.settings) {
             javaScriptEnabled = true
+            domStorageEnabled = true
+            
+            // [Critical] 로컬 파일(file://) 간의 CORS 에러 해결
             allowFileAccess = true
             allowContentAccess = true
-            domStorageEnabled = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
+            
             loadWithOverviewMode = true
             useWideViewPort = true
-            displayZoomControls = false
+            
+            // 터치 방해 요소 제거
+            setSupportZoom(false)
             builtInZoomControls = false
+            displayZoomControls = false
         }
 
         // WebChromeClient 설정: JS console.log를 Logcat으로 전달

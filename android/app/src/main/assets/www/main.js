@@ -55,6 +55,10 @@ function create() {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
+    // 멀티 터치 명시적 활성화 (최대 2개 손가락)
+    this.input.addPointer(2);
+    console.log("Phaser Multi-touch Pointers Added");
+
     // 1. 패럴랙스 배경 레이어 (밝은 하늘색 그라데이션)
     const sky = this.add.graphics();
     sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xE0F7FA, 0xE0F7FA, 1); // SkyBlue -> LightCyan
@@ -131,8 +135,11 @@ function setupVirtualController() {
     .setDepth(101);
 
     // 버튼 A(JUMP) 클릭 이벤트
-    buttonA.on('pointerdown', () => {
-        if (groom.body.touching.down || groom.body.blocked.down) {
+    buttonA.on('pointerdown', (pointer) => {
+        console.log("JUMP Button Down! PointerID:", pointer.id);
+        const isGrounded = groom.body.touching.down || groom.body.blocked.down;
+        console.log("Grounded:", isGrounded, "VelocityY:", groom.body.velocity.y);
+        if (isGrounded) {
             groom.body.setVelocityY(-550); // 위로 점프
         }
     });
@@ -154,8 +161,10 @@ function setupVirtualController() {
 
     // 터치 이벤트 리스너
     this.input.on('pointerdown', (pointer) => {
+        console.log("Global Down! X:", Math.floor(pointer.x), "ID:", pointer.id);
         // 왼쪽 화면 터치 시 조이스틱 활성화
         if (pointer.x < width / 2 && joystickPointer === null) {
+            console.log("Joystick Pointer Assigned:", pointer.id);
             joystickPointer = pointer;
             updateJoystick(pointer);
         }
@@ -169,8 +178,10 @@ function setupVirtualController() {
     });
 
     this.input.on('pointerup', (pointer) => {
+        console.log("Global Up! ID:", pointer.id);
         // 조이스틱을 잡았던 포인터가 떼어졌을 때만 초기화
         if (joystickPointer && pointer.id === joystickPointer.id) {
+            console.log("Joystick Pointer Released:", pointer.id);
             joystickPointer = null;
             joystickThumb.x = padding;
             joystickThumb.y = height - padding;
