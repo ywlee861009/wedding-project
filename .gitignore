@@ -1,0 +1,22 @@
+# App Bundle
+*.aab
+
+# OS X
+.DS_Store
+
+# Gradle
+.gradle/
+build/
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+*.jks
+*.keystore
+*.p12
+*.jks-private
+
+# 🛡️ Release Signing Secrets
+cmp/keystore/
+keystore-info.md
