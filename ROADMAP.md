@@ -1,15 +1,15 @@
 # 🗺️ Wedding Project Roadmap (v1.0)
 
 ## Phase 1: Planning & Design (기획 및 디자인)
-- [ ] **M1. Concept Setting**: 디자인 컨셉 및 톤앤매너 확정 (Color Scheme, Typography).
-- [ ] **M2. Content Preparation**: 신랑 신부 소개 글, 사진, 식장 정보, 계좌 정보 등 수집.
-- [ ] **M3. Wireframing**: 주요 화면 설계 (메인, 갤러리, RSVP, 방명록).
+- [ ] **M1. Concept Setting**: 횡스크롤 게임 테마 및 패럴랙스 스크롤링 상세 기획.
+- [ ] **M2. Asset Sourcing**: 고퀄리티 무료 픽셀 아트 에셋(배경 레이어, 오브젝트) 수집 및 큐레이션.
+- [ ] **M3. Character Sprite**: 160x160 SD 신랑/신부 스프라이트 정교화 및 애니메이션 시트 설계.
 
 ## Phase 2: Core Implementation (핵심 기능 구현)
-- [ ] **M4. Project Scaffold**: 기술 스택 선정 및 초기 프로젝트 세팅 (Next.js or CMP).
-- [ ] **M5. Main UI**: 메인 초대장 레이아웃 및 디데이 카운트다운 구현.
-- [ ] **M6. Wedding Info**: 식장 위치 연동 및 지도 API 삽입.
-- [ ] **M7. Gallery**: 이미지 슬라이더 및 풀스크린 뷰어 구현.
+- [ ] **M4. Project Scaffold**: Next.js 기반 게임 엔진/라이브러리(PixiJS 등) 연동.
+- [ ] **M5. Parallax Engine**: 다층 배경 레이어의 속도차 스크롤 시스템 구축.
+- [ ] **M6. Main Interaction**: 캐릭터 이동 및 점프 로직 구현.
+- [ ] **M7. Information Blocks**: ? 블록 타격 시 정보 팝업(일시, 장소 등) 노출 연동.
 
 ## Phase 3: Interactive Features (인터랙션 및 소통)
 - [ ] **M8. RSVP System**: 참석 여부 입력 폼 및 데이터 저장 (Firebase 등).

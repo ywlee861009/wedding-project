@@ -1,0 +1,14 @@
+// Root build.gradle
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.1.0"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20"
+    }
+}
+
+// 개별 모듈(app)의 저장소 설정은 settings.gradle에서 일괄 관리합니다.
+// 여기에 repositories {} 블록을 추가하면 안 됩니다.
