@@ -40,27 +40,24 @@
     // 4. 스크롤 시스템 (Travel Control)
     let targetScrollX = 0;
     let currentScrollX = 0;
-    const scrollSpeed = 0.5;
 
     window.addEventListener('wheel', (e) => {
         targetScrollX += e.deltaY;
-        // 여정의 시작(독산역) 전으로는 못 가게 제한
         if (targetScrollX < 0) targetScrollX = 0;
     });
 
     // 5. 게임 루프 (애니메이션)
     app.ticker.add(() => {
-        // 부드러운 이동 (Lerp)
         currentScrollX += (targetScrollX - currentScrollX) * 0.1;
 
-        // 레이어별 패럴랙스 (2.5D 효과의 핵심!)
+        // 레이어별 패럴랙스 (2.5D 효과)
         layers.sky.x = -currentScrollX * 0.05;
         layers.far.x = -currentScrollX * 0.2;
         layers.mid.x = -currentScrollX * 0.5;
         layers.main.x = -currentScrollX * 1.0;
         layers.near.x = -currentScrollX * 1.5;
 
-        // 날짜 업데이트 (거리 비례)
+        // 날짜 업데이트
         updateDate(currentScrollX);
     });
 
@@ -69,7 +66,7 @@
     const dateEl = document.getElementById('current-date');
 
     function updateDate(distance) {
-        const daysToAdd = Math.floor(distance / 50); // 50px 당 1일 흐름
+        const daysToAdd = Math.floor(distance / 50); 
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + daysToAdd);
         
@@ -80,7 +77,6 @@
         dateEl.innerText = `${y}. ${m}. ${d}`;
     }
 
-    // 창 크기 조절 대응
     window.addEventListener('resize', () => {
         groom.y = window.innerHeight * 0.7;
         bride.y = window.innerHeight * 0.7;
