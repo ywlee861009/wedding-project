@@ -1,78 +1,155 @@
 /**
  * @class DialogueUI
- * 대화창 및 선택지를 관리하는 UI 컴포넌트
+ * 터치 인식 문제를 완벽히 해결한 순수 Phaser 대화 시스템
  */
 class DialogueUI {
     constructor(scene) {
         this.scene = scene;
-        this.elements = []; // 컨테이너 대신 배열로 개별 관리
         this.isOpen = false;
+        this.isTyping = false;
+        this.fullText = "";
+        this.displayIndex = 0;
+        
+        this.mainContainer = null;
+        this.choiceElements = []; // 버튼들을 따로 관리
+        this.timer = null;
+        this.skipHandler = null; // 리스너 참조 저장
     }
 
-    show(text, choices, onSelect) {
+    show(text, choices = [], onSelect) {
         if (this.isOpen) return;
         this.isOpen = true;
-        console.log("Dialogue System: Attempting to show dialogue");
+        this.fullText = text;
+        this.displayIndex = 0;
 
         const { width, height } = this.scene.scale;
-        const depth = 3000; // 매우 높은 우선순위
+        const padding = 20;
+        const boxHeight = 160;
+        const boxY = height - boxHeight - 40;
 
-        // 1. 대화창 배경
-        const bg = this.scene.add.graphics().setDepth(depth).setScrollFactor(0);
-        bg.fillStyle(0x000000, 0.9);
-        bg.fillRoundedRect(width * 0.1, height - 220, width * 0.8, 180, 20);
-        bg.lineStyle(4, 0xffffff, 0.8);
-        bg.strokeRoundedRect(width * 0.1, height - 220, width * 0.8, 180, 20);
-        this.elements.push(bg);
+        // 1. 메인 대화창 컨테이너
+        this.mainContainer = this.scene.add.container(0, 0).setDepth(3000).setScrollFactor(0);
 
-        // 2. 대사 텍스트
-        const dialogText = this.scene.add.text(width * 0.15, height - 190, text, {
-            fontSize: '22px',
-            color: '#ffffff',
-            wordWrap: { width: width * 0.7 },
+        const bg = this.scene.add.graphics();
+        bg.fillStyle(0x000000, 0.5).fillRoundedRect(padding + 5, boxY + 5, width - (padding * 2), boxHeight, 15);
+        bg.fillStyle(0x1a1a1a, 0.95).fillRoundedRect(padding, boxY, width - (padding * 2), boxHeight, 15);
+        bg.lineStyle(4, 0xffd700, 0.8).strokeRoundedRect(padding, boxY, width - (padding * 2), boxHeight, 15);
+        this.mainContainer.add(bg);
+
+        this.textElement = this.scene.add.text(padding + 30, boxY + 30, "", {
+            fontSize: '22px', color: '#ffffff',
+            wordWrap: { width: width - (padding * 2) - 60 },
             lineSpacing: 10
-        }).setDepth(depth + 1).setScrollFactor(0);
-        this.elements.push(dialogText);
+        });
+        this.mainContainer.add(this.textElement);
 
-        // 3. 선택지 버튼 생성
+        this.arrow = this.scene.add.text(width - 60, boxY + boxHeight - 40, "▼", { fontSize: '20px', color: '#ffd700' }).setAlpha(0);
+        this.mainContainer.add(this.arrow);
+
+        // 2. 타이핑 및 스킵 핸들러 등록
+        this.isTyping = true;
+        this.skipHandler = () => {
+            if (this.isTyping) {
+                this.finishTyping(choices, onSelect);
+            }
+        };
+        this.scene.input.on('pointerdown', this.skipHandler);
+
+        this.startTyping(choices, onSelect);
+    }
+
+    startTyping(choices, onSelect) {
+        this.timer = this.scene.time.addEvent({
+            delay: 50,
+            callback: () => {
+                this.displayIndex++;
+                this.textElement.setText(this.fullText.substring(0, this.displayIndex));
+                if (this.displayIndex >= this.fullText.length) {
+                    this.finishTyping(choices, onSelect);
+                }
+            },
+            repeat: this.fullText.length - 1
+        });
+    }
+
+    finishTyping(choices, onSelect) {
+        if (this.timer) this.timer.destroy();
+        this.isTyping = false;
+        this.textElement.setText(this.fullText);
+        
+        // 스킵 리스너 확실히 제거
+        if (this.skipHandler) {
+            this.scene.input.off('pointerdown', this.skipHandler);
+            this.skipHandler = null;
+        }
+
+        this.scene.tweens.add({ targets: this.arrow, alpha: 1, duration: 500, yoyo: true, repeat: -1 });
+
+        if (choices && choices.length > 0) {
+            this.showChoices(choices, onSelect);
+        } else {
+            // 선택지가 없으면 0.5초 뒤부터 클릭해서 닫기 가능
+            this.scene.time.delayedCall(500, () => {
+                this.scene.input.once('pointerdown', () => this.hide());
+            });
+        }
+    }
+
+    showChoices(choices, onSelect) {
+        const { width, height } = this.scene.scale;
+        
         choices.forEach((choice, index) => {
-            const btnWidth = 160;
-            const btnHeight = 60;
-            const btnX = width * 0.5 + (index === 0 ? -100 : 100);
-            const btnY = height - 85;
+            const btnWidth = 280;
+            const btnHeight = 70;
+            const x = width / 2;
+            const y = (height / 2) + (index - (choices.length - 1) / 2) * 90;
 
-            // 버튼 배경 (Rectangle이 터치 인식이 가장 정확함)
-            const btnBg = this.scene.add.rectangle(btnX, btnY, btnWidth, btnHeight, 0xffffff)
-                .setDepth(depth + 2)
+            // 배경 사각형 (인식 범위 극대화를 위해 컨테이너 밖 씬에 직접 배치)
+            const bg = this.scene.add.rectangle(x, y, btnWidth, btnHeight, 0xffffff)
+                .setStrokeStyle(4, 0xffd700)
+                .setDepth(4001)
                 .setScrollFactor(0)
                 .setInteractive({ useHandCursor: true });
             
-            const btnText = this.scene.add.text(btnX, btnY, choice.label, {
-                fontSize: '20px',
-                color: '#000000',
-                fontWeight: 'bold'
-            }).setOrigin(0.5).setDepth(depth + 3).setScrollFactor(0);
+            const txt = this.scene.add.text(x, y, choice.label, {
+                fontSize: '24px', color: '#000000', fontWeight: 'bold'
+            }).setOrigin(0.5).setDepth(4002).setScrollFactor(0);
 
-            this.elements.push(btnBg, btnText);
+            this.choiceElements.push(bg, txt);
 
-            // [Critical] 클릭 이벤트 로그 강화
-            btnBg.on('pointerdown', (pointer) => {
-                console.log(`Button Clicked: ${choice.label} at (${pointer.x}, ${pointer.y})`);
+            // 이벤트 핸들링 (즉각적인 로그 추가)
+            bg.on('pointerdown', () => {
+                console.log(`POINTER DOWN: ${choice.label}`);
+                bg.setFillStyle(0xffd700); // 누르는 즉시 금색으로 변함
+            });
+
+            bg.on('pointerup', () => {
+                console.log(`POINTER UP: ${choice.label}`);
                 this.hide();
                 if (onSelect) onSelect(choice.value);
             });
 
-            // 시각적 효과
-            btnBg.on('pointerover', () => btnBg.setFillStyle(0xeeeeee));
-            btnBg.on('pointerout', () => btnBg.setFillStyle(0xffffff));
+            bg.on('pointerout', () => {
+                bg.setFillStyle(0xffffff);
+            });
         });
     }
 
     hide() {
-        if (!this.isOpen) return;
-        console.log("Dialogue System: Hiding elements");
-        this.elements.forEach(el => el.destroy());
-        this.elements = [];
+        if (this.mainContainer) {
+            this.mainContainer.destroy();
+            this.mainContainer = null;
+        }
+        this.choiceElements.forEach(el => el.destroy());
+        this.choiceElements = [];
+        
+        if (this.timer) this.timer.destroy();
+        if (this.skipHandler) {
+            this.scene.input.off('pointerdown', this.skipHandler);
+            this.skipHandler = null;
+        }
+        
         this.isOpen = false;
+        this.isTyping = false;
     }
 }

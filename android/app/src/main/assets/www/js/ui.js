@@ -1,14 +1,15 @@
 /**
  * @class VirtualController
- * 가상 조이스틱과 버튼을 관리하는 클래스
+ * RexRainbow 가상 조이스틱과 커스텀 버튼을 관리하는 클래스
  */
 class VirtualController {
     constructor(scene) {
         this.scene = scene;
-        this.joystickPoint = { x: 0, y: 0 };
-        this.joystickPointer = null;
         this.padding = 100;
-        this.radius = 30; // 60 -> 30으로 축소
+        this.radius = 40;
+        
+        // 조이스틱 상태 값 (main.js 호환용)
+        this.joystickPoint = { x: 0, y: 0 };
         
         this.setup();
     }
@@ -16,74 +17,56 @@ class VirtualController {
     setup() {
         const { width, height } = this.scene.scale;
         
-        // 조이스틱 베이스
-        this.base = this.scene.add.circle(this.padding, height - this.padding, this.radius, 0xffffff, 0.4)
-            .setStrokeStyle(4, 0x000000, 0.3).setScrollFactor(0).setDepth(100);
-        
-        // 조이스틱 썸
-        this.thumb = this.scene.add.circle(this.padding, height - this.padding, 15, 0xffffff, 0.8) // 30 -> 15로 축소
-            .setStrokeStyle(2, 0x000000, 0.5).setScrollFactor(0).setDepth(101);
+        // 1. Rex 가상 조이스틱 생성
+        this.joystick = this.scene.plugins.get('rexVirtualJoystick').add(this.scene, {
+            x: this.padding,
+            y: height - this.padding,
+            radius: this.radius,
+            base: this.scene.add.circle(0, 0, this.radius, 0xffffff, 0.4).setStrokeStyle(4, 0x000000, 0.3),
+            thumb: this.scene.add.circle(0, 0, 20, 0xffffff, 0.8).setStrokeStyle(2, 0x000000, 0.5),
+            dir: '8dir', // 8방향 모드
+            forceMin: 16,
+            enable: true
+        });
 
-        // 버튼 A (JUMP)
+        // 조이스틱 객체의 Depth와 ScrollFactor 설정 (UI로 고정)
+        this.joystick.base.setScrollFactor(0).setDepth(100);
+        this.joystick.thumb.setScrollFactor(0).setDepth(101);
+
+        // 2. 버튼 A (JUMP)
         this.btnJump = this.scene.add.circle(width - this.padding, height - this.padding, 25, 0xffffff, 0.6)
             .setStrokeStyle(4, 0x000000, 0.5).setScrollFactor(0).setDepth(100).setInteractive();
         
         this.scene.add.text(width - this.padding, height - this.padding, 'JUMP', 
             { fontSize: '14px', color: '#000', fontWeight: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
 
-        // 버튼 B (TALK)
+        // 3. 버튼 B (TALK)
         this.btnB = this.scene.add.circle(width - (this.padding * 1.6), height - this.padding, 25, 0xffffff, 0.6)
             .setStrokeStyle(4, 0x000000, 0.5).setScrollFactor(0).setDepth(100).setInteractive();
         
         this.scene.add.text(width - (this.padding * 1.6), height - this.padding, 'TALK', 
             { fontSize: '14px', color: '#000', fontWeight: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
 
-        // 터치 리스너
-        this.scene.input.on('pointerdown', (p) => this.handleDown(p));
-        this.scene.input.on('pointermove', (p) => this.handleMove(p));
-        this.scene.input.on('pointerup', (p) => this.handleUp(p));
-        
         // 버튼 이벤트
         this.btnJump.on('pointerdown', () => this.scene.groom.jump());
         this.btnB.on('pointerdown', () => this.scene.events.emit('try-interact'));
+
+        // [Update Loop] 조이스틱 강도(force)를 joystickPoint.x에 매핑
+        this.scene.events.on('update', () => {
+            if (this.joystick.force > 0) {
+                // 각도(Radian)를 사용하여 X축 벡터 계산 (-1 ~ 1)
+                this.joystickPoint.x = Math.cos(this.joystick.rotation) * (this.joystick.force / this.radius);
+            } else {
+                this.joystickPoint.x = 0;
+            }
+        });
     }
 
-    handleDown(p) {
-        if (p.x < this.scene.scale.width / 2 && !this.joystickPointer) {
-            this.joystickPointer = p;
-            this.updateJoystick(p);
-        }
-    }
-
-    handleMove(p) {
-        if (this.joystickPointer && p.id === this.joystickPointer.id) {
-            this.updateJoystick(p);
-        }
-    }
-
-    handleUp(p) {
-        if (this.joystickPointer && p.id === this.joystickPointer.id) {
-            this.joystickPointer = null;
-            this.thumb.x = this.padding;
-            this.thumb.y = this.scene.scale.height - this.padding;
-            this.joystickPoint = { x: 0, y: 0 };
-        }
-    }
-
-    updateJoystick(p) {
-        const centerX = this.padding;
-        const centerY = this.scene.scale.height - this.padding;
-        const dist = Phaser.Math.Distance.Between(centerX, centerY, p.x, p.y);
-        const angle = Phaser.Math.Angle.Between(centerX, centerY, p.x, p.y);
-
-        if (dist <= this.radius) {
-            this.thumb.x = p.x;
-            this.thumb.y = p.y;
-        } else {
-            this.thumb.x = centerX + Math.cos(angle) * this.radius;
-            this.thumb.y = centerY + Math.sin(angle) * this.radius;
-        }
-
-        this.joystickPoint.x = (this.thumb.x - centerX) / this.radius;
+    // 화면 크기 조정(Resize) 시 위치 재정렬이 필요할 경우 호출
+    updatePositions() {
+        const { width, height } = this.scene.scale;
+        this.joystick.setPosition(this.padding, height - this.padding);
+        this.btnJump.setPosition(width - this.padding, height - this.padding);
+        this.btnB.setPosition(width - (this.padding * 1.6), height - this.padding);
     }
 }

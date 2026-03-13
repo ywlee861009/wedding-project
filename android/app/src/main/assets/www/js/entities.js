@@ -92,10 +92,31 @@ class Bride extends Phaser.GameObjects.Image {
         
         this.body.setAllowGravity(true);
         this.alpha = 1.0;
-        this.showIndicator(false); // 만나면 느낌표 제거
+        this.showIndicator(false);
         
-        const offset = target.flipX ? 80 : -80;
-        this.x = Phaser.Math.Linear(this.x, target.x + offset, 0.2);
-        this.flipX = target.flipX;
+        // 따라갈 목표 지점 계산 (신랑의 뒤쪽)
+        const offset = target.flipX ? 100 : -100;
+        const targetX = target.x + offset;
+        const distance = targetX - this.x;
+        
+        // 1. 떨림 방지: 거리가 아주 가까우면 속도를 0으로 만들어 고정
+        if (Math.abs(distance) < 10) {
+            this.body.setVelocityX(0);
+        } else {
+            // 2. 부드러운 추적: 거리에 비례하여 속도 설정 (Lerp 방식의 물리 버전)
+            // 5는 추적 감도입니다. 숫자가 높을수록 민첩하게 따라옵니다.
+            const followSpeed = distance * 5;
+            
+            // 너무 빠르게 튀어나가지 않도록 최대 속도 제한
+            const maxSpeed = GAME_CONFIG.PHYSICS.MOVE_SPEED * 1.2;
+            const clampedSpeed = Phaser.Math.Clamp(followSpeed, -maxSpeed, maxSpeed);
+            
+            this.body.setVelocityX(clampedSpeed);
+        }
+
+        // 방향 전환 (약간의 유연함 추가: 거리가 충분히 멀 때만 방향을 바꿈)
+        if (Math.abs(this.body.velocity.x) > 10) {
+            this.flipX = this.body.velocity.x < 0;
+        }
     }
 }

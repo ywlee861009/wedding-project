@@ -13,6 +13,13 @@ const config = {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
+    plugins: {
+        global: [{
+            key: 'rexVirtualJoystick',
+            plugin: rexvirtualjoystickplugin,
+            start: true
+        }]
+    },
     backgroundColor: '#87CEEB',
     physics: {
         default: 'arcade',
@@ -69,6 +76,8 @@ function create() {
     this.physics.add.collider(this.bride, ground);
 
     // [변경] 자동 만남 대신 상호작용 이벤트 리스너 등록
+    this.isRejected = false; // 거절 상태 플래그
+
     this.events.on('try-interact', () => {
         const dist = Phaser.Math.Distance.Between(this.groom.x, this.groom.y, this.bride.x, this.bride.y);
         
@@ -80,9 +89,18 @@ function create() {
                 (value) => {
                     if (value) {
                         this.isMeeting = true;
+                        this.isRejected = false;
                         console.log("상호작용 성공: 신부와 동행 시작!");
                     } else {
+                        this.isMeeting = false;
+                        this.isRejected = true;
+                        this.bride.showIndicator(false);
                         console.log("혼자 가기를 선택했습니다.");
+                        
+                        // 3초 후 다시 상호작용 가능하게 플래그 리셋 (원할 경우)
+                        this.time.delayedCall(3000, () => {
+                            this.isRejected = false;
+                        });
                     }
                 }
             );
@@ -123,9 +141,12 @@ function update() {
     }
 
     // 신부 상호작용 거리 체크 및 느낌표 표시
-    if (!this.isMeeting) {
+    if (!this.isMeeting && !this.isRejected) {
         const dist = Phaser.Math.Distance.Between(this.groom.x, this.groom.y, this.bride.x, this.bride.y);
         this.bride.showIndicator(dist < 150);
+    } else if (this.isRejected) {
+        // 거절한 상태면 느낌표 강제로 숨김
+        this.bride.showIndicator(false);
     }
 
     // 신부 따라오기
