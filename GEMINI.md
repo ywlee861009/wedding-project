@@ -21,10 +21,11 @@
     - 3D 공간의 우아함과 청첩장의 핵심 정보 전달력이 완벽한 조화를 이루어야 함. 
     - 모바일(WebView) 환경에서의 최적화된 프레임 유지와 사용자 경험이 최우선.
     - **[Critical] 안드로이드(WebView Wrapper) 프로젝트를 수정할 경우, 반드시 `./gradlew assembleDebug` 또는 `./gradlew build` 명령을 통해 빌드 성공 여부를 확인한 후 답변할 것. (Build-Verified Done)**
-    - **[Architecture] Three.js 기반의 객체지향(OOP) 설계를 준수하며, 씬(Scene) 관리와 엔티티(Entity) 로직을 명확히 분리함:**
-        - `config.js`: 3D 에셋 경로, 물리 상수, 조명 설정 등 모든 데이터 집약.
-        - `entities/`: 3D 캐릭터(신랑, 신부) 및 주요 오브젝트(나무, 건물 등) 클래스화.
-        - `main.js`: 3D 씬 초기화, 렌더 루프 및 카메라 추적 로직 담당.
+    - **[Architecture] Three.js 기반의 객체지향(OOP) 설계를 준수하며, ES Modules(ESM) 기반의 완전한 모듈화를 원칙으로 함:**
+        - **중요**: 모든 파일은 `import/export`를 사용하는 모듈 방식으로 작성하며, 전역 변수 오염을 최소화함.
+        - `config.js`: 모든 데이터(물리 상수, 색상, 설정값, 에셋 경로 등) 집약. (Single Source of Truth)
+        - `entities.js`: 모든 3D 오브젝트(신랑, 신부, 건물, 역 등) 클래스화 및 모듈화.
+        - `main.js`: 엔트리 포인트로서 씬 초기화, 렌더 루프 및 카메라 추적, 입력 로직만 담당.
 
 ## 📂 3. 문서 구조 (Doc Structure)
 - **`README.md`**: 프로젝트 개요 및 실행 방법.
