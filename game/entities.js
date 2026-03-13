@@ -2,6 +2,92 @@
  * 💍 Wedding Journey Entities Module
  */
 import { CONFIG } from './config.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/**
+ * 플레이어(신랑/신부) 클래스 - 3D 모델 및 애니메이션 포함
+ */
+export class PlayerEntity {
+    constructor() {
+        this.group = new THREE.Group();
+        this.model = null;
+        this.mixer = null;
+        this.actions = {}; // 애니메이션 액션 저장소
+        this.currentState = 'idle'; // 현재 상태 (idle, walk 등)
+
+        this.loader = new GLTFLoader();
+        this.loadModel();
+    }
+
+    loadModel() {
+        this.loader.load(CONFIG.PLAYER.MODEL_PATH, (gltf) => {
+            this.model = gltf.scene;
+            this.model.scale.set(1.5, 1.5, 1.5); // 모델 크기 조정
+            this.model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            this.group.add(this.model);
+
+            // 애니메이션 믹서 설정
+            this.mixer = new THREE.AnimationMixer(this.model);
+            gltf.animations.forEach((clip) => {
+                this.actions[clip.name.toLowerCase()] = this.mixer.clipAction(clip);
+            });
+
+            // 기본 동작(idle 또는 첫 번째 애니메이션) 재생
+            if (this.actions['idle']) this.actions['idle'].play();
+            else if (gltf.animations.length > 0) {
+                this.mixer.clipAction(gltf.animations[0]).play();
+            }
+
+            console.log('✅ Player Model Loaded:', gltf.animations.map(a => a.name));
+        }, 
+        undefined, 
+        (error) => {
+            console.warn('⚠️ 3D 모델을 찾을 수 없습니다. 기본 파란 큐브로 대체합니다.', error);
+            this.createFallbackModel();
+        });
+    }
+
+    // 모델 파일이 없을 때 보여줄 기본 큐브
+    createFallbackModel() {
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE),
+            new THREE.MeshStandardMaterial({ color: CONFIG.PLAYER.COLOR, roughness: 0.2 })
+        );
+        cube.castShadow = true;
+        this.group.add(cube);
+    }
+
+    // 애니메이션 프레임 업데이트
+    update(delta) {
+        if (this.mixer) this.mixer.update(delta);
+    }
+
+    // 상태 변경 (예: 걷기 -> 멈춤)
+    setState(newState) {
+        if (this.currentState === newState) return;
+        
+        // 대소문자 구분 없이 애니메이션 찾기 (예: walk, Walk, WALK 모두 대응)
+        const targetName = newState.toLowerCase();
+        const actionKey = Object.keys(this.actions).find(key => key.toLowerCase() === targetName);
+        
+        if (!actionKey) return;
+
+        const prevActionKey = Object.keys(this.actions).find(key => key.toLowerCase() === this.currentState.toLowerCase());
+        const prevAction = prevActionKey ? this.actions[prevActionKey] : null;
+        const nextAction = this.actions[actionKey];
+
+        if (prevAction) prevAction.fadeOut(0.2);
+        nextAction.reset().fadeIn(0.2).play();
+        this.currentState = newState;
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
 
 export class BuildingEntity {
     constructor(x, z, config = {}) {
@@ -28,20 +114,20 @@ export class BuildingEntity {
     addSign(w, h, d) {
         const isActimedi = Math.random() > 0.5;
         const signTex = isActimedi ? BuildingEntity.actimediTex : BuildingEntity.fitpetTex;
-        const signGeo = new THREE.BoxGeometry(w * 0.9, 2.8, 0.6);
+        const signGeo = new THREE.BoxGeometry(w * 0.9, 4, 1.2); 
         const signMat = new THREE.MeshStandardMaterial({ 
             map: signTex, 
-            emissive: isActimedi ? 0x00ffaa : 0x00aaff, 
-            emissiveIntensity: 0.8 
+            roughness: 0.2,
+            metalness: 0.5
         });
         const sign = new THREE.Mesh(signGeo, signMat);
-        sign.position.set(0, h - 4, d / 2 + 0.35);
+        sign.position.set(0, h - 5, d / 2 + 0.61); 
         this.group.add(sign);
     }
 
     addWindows(w, h, d) {
-        const winGeo = new THREE.PlaneGeometry(0.4, 0.6);
-        const winMat = new THREE.MeshStandardMaterial({ color: 0xffff88, emissive: 0xffaa00, emissiveIntensity: 1.2 });
+        const winGeo = new THREE.PlaneGeometry(0.6, 0.8); // 창문 크기도 약간 키움
+        const winMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffaa00, emissiveIntensity: 1.5 });
         const rows = Math.floor(h / 3);
         const cols = Math.floor(w / 2);
         for (let r = 1; r < rows; r++) {
@@ -60,14 +146,29 @@ export class BuildingEntity {
 
 BuildingEntity.createLogoTexture = function(text, bgColor, textColor) {
     const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 128;
+    canvas.width = 1024; canvas.height = 256; // 해상도 2배 확장
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = textColor; ctx.font = '900 90px sans-serif'; 
+    
+    // 배경 (브랜드 색상)
+    ctx.fillStyle = bgColor; 
+    ctx.fillRect(0, 0, 1024, 256);
+    
+    // 검정 테두리
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 20;
+    ctx.strokeRect(10, 10, 1004, 236);
+
+    // 아주 검정색 글자
+    ctx.fillStyle = '#000000'; 
+    ctx.font = 'bold 165px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif'; 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10;
-    ctx.fillText(text, 256, 70);
-    return new THREE.CanvasTexture(canvas);
+    
+    // 그림자 제거 (깔끔한 검정 글자)
+    ctx.fillText(text, 512, 135);
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 16; // 텍스처 선명도 향상
+    return tex;
 };
 
 BuildingEntity.actimediTex = BuildingEntity.createLogoTexture('액티메디', '#00ffaa', '#000000');
@@ -137,6 +238,33 @@ export class CloudEntity {
             this.group.add(sphere);
         }
         this.group.position.set(x, y, z);
+    }
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 길거리 소품 (쓰레기통, 쓰레기봉투 등) 클래스
+ */
+export class PropEntity {
+    constructor(x, z, modelPath, scale = 1.0) {
+        this.group = new THREE.Group();
+        this.loader = new GLTFLoader();
+        
+        this.loader.load(modelPath, (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(scale, scale, scale);
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            this.group.add(model);
+        }, undefined, (error) => {
+            console.warn(`⚠️ 소품 모델 로드 실패 (${modelPath}):`, error);
+        });
+
+        this.group.position.set(x, 0, z);
     }
     addTo(scene) { scene.add(this.group); }
 }

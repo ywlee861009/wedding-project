@@ -11,8 +11,11 @@ export const CONFIG = {
     },
     LIGHTS: {
         AMBIENT: 0x444466,
+        AMBIENT_INTENSITY: 1.0,
         DIRECTIONAL: 0xffffff,
-        FOLLOW_LIGHT: 0xffcc44
+        DIRECTIONAL_INTENSITY: 1.5,
+        FOLLOW_LIGHT: 0xffcc44,
+        FOLLOW_INTENSITY: 8.0
     },
     PHYSICS: {
         GRAVITY: -0.015,
@@ -23,7 +26,8 @@ export const CONFIG = {
     PLAYER: {
         COLOR: 0x00aaff,
         SIZE: 1.2,
-        START_Y: 0.6
+        START_Y: 0.6,
+        MODEL_PATH: './assets/models/groom.glb' // 테스트용 모델 경로
     },
     COLORS: {
         BUILDING: [0x2c3e50, 0x34495e, 0x1a252f, 0x2c3e50],
