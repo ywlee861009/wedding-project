@@ -1,8 +1,0 @@
-<resources>
-    <style name="Theme.WeddingGame" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- 기본 색상 설정 (필요시 수정) -->
-        <item name="colorPrimary">#FF6200EE</item>
-        <item name="colorPrimaryDark">#FF3700B3</item>
-        <item name="colorAccent">#FF03DAC5</item>
-    </style>
-</resources>
