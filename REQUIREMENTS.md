@@ -35,8 +35,27 @@
 - **공유하기**: 카카오톡 공유 API를 통한 청첩장 전달 기능.
 - **음악**: 배경 음악 재생/정지 기능 (선택 사항).
 
-## 4. 기술 스택 (Technical Stack)
-- (사용자와의 논의를 통해 추후 확정)
+## 4. 기술 및 성능 요구사항 (Technical & Performance)
+
+### 4.1 런타임 성능 (Runtime Performance)
+- **Target FPS**: 모든 타겟 기기(모바일 WebView 포함)에서 상시 **60 FPS** 유지.
+- **No Stuttering**: 횡스크롤 여정 중 프레임 드랍(Stuttering) 및 렉 현상 제로.
+- **Input Latency**: 사용자 입력(Touch/Keyboard)에 대한 즉각적인 반응 (Latency < 16ms).
+
+### 4.2 리소스 관리 (Resource Optimization)
+- **Asset Size**: 개별 GLB 파일은 **500KB 미만**으로 최적화하며, 텍스처는 WebP 포맷을 사용하여 총 에셋 크기 최소화.
+- **Draw Calls**: 씬 내 전체 드로우 콜을 **50개 이하**로 제어 (Instancing 적극 활용).
+- **Memory Hygiene**: 페이지 전환 또는 컴포넌트 언마운트 시 모든 Three.js 객체(Geometry, Material, Texture)를 명시적으로 `dispose()` 하여 메모리 누수 방지.
+
+### 4.3 플랫폼 최적화 (Platform Optimization)
+- **WebView Performance**: 안드로이드/iOS WebView 환경에서의 GPU 가속 및 하드웨어 성능을 최대한 활용할 수 있도록 쉐이더(Shader) 복잡도 관리.
+- **Mobile Responsive**: 다양한 해상도(Aspect Ratio)에서 카메라 시야각(FOV)이 깨지지 않는 반응형 3D 카메라 시스템 구축.
+
+## 5. 기술 스택 (Technical Stack)
+- **Engine**: Three.js (ES Modules 기반 완전 모듈화)
+- **Physics**: 자체 간소화된 물리 엔진 (중력, 점프, 충돌)
+- **Assets**: GLB (Low-Poly + Baked Lightmap)
+- **Build**: Vite/Webpack (Tree-shaking 필수 적용)
 
 ---
 *Last Updated: 2026-03-13*
