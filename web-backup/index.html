@@ -31,56 +31,52 @@
 
         /* 모바일 터치 컨트롤 스타일 */
         #mobile-controls {
-            position: fixed; bottom: 40px; left: 0; right: 0;
+            position: fixed; bottom: 30px; left: 0; right: 0;
             display: flex; justify-content: space-between; align-items: flex-end;
-            padding: 0 40px; z-index: 200; pointer-events: none;
+            padding: 0 30px; z-index: 200; pointer-events: none;
         }
-        
-        /* 🕹️ 조이스틱 디자인 */
-        #joystick-container {
-            width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3);
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px); pointer-events: auto;
-            opacity: 0.5; transition: opacity 0.3s;
+        .joystick-area {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            pointer-events: auto;
         }
-        #joystick-knob {
-            width: 50px; height: 50px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-
         .touch-btn {
-            width: 80px; height: 80px; border-radius: 50%; border: none;
-            background: rgba(0, 170, 255, 0.3); color: white;
-            font-size: 16px; font-weight: bold;
+            width: 60px; height: 60px; border-radius: 50%; border: none;
+            background: rgba(255, 255, 255, 0.3); color: white;
+            font-size: 24px; font-weight: bold;
             display: flex; justify-content: center; align-items: center;
             user-select: none; -webkit-tap-highlight-color: transparent;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-            pointer-events: auto;
         }
-        .touch-btn:active { background: rgba(0, 170, 255, 0.6); transform: scale(0.9); }
+        .touch-btn:active { background: rgba(255, 255, 255, 0.6); transform: scale(0.9); }
+        .jump-btn {
+            width: 80px; height: 80px; background: rgba(0, 170, 255, 0.4);
+            font-size: 16px; pointer-events: auto;
+        }
+        .jump-btn:active { background: rgba(0, 170, 255, 0.7); }
 
         @media (max-width: 768px) {
             #pc-instruction { display: none; }
-            #mobile-controls { display: flex !important; }
         }
     </style>
 </head>
 <body>
     <div id="ui-overlay">
-        <h2 style="margin:0">💍 기억의 섬 여행</h2>
+        <h2 style="margin:0">💍 결혼이란..</h2>
         <p id="pc-instruction" style="margin:5px 0">WASD: 이동 | Space: 점프</p>
         <div id="status-log">시스템 로드 중...</div>
     </div>
 
-    <!-- 모바일 터치 컨트롤러 (V2 조이스틱) -->
+    <!-- 모바일 터치 컨트롤러 -->
     <div id="mobile-controls" style="display: none;">
-        <div id="joystick-container">
-            <div id="joystick-knob"></div>
+        <div class="joystick-area">
+            <button id="btn-up" class="touch-btn">▲</button>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-left" class="touch-btn">◀</button>
+                <button id="btn-down" class="touch-btn">▼</button>
+                <button id="btn-right" class="touch-btn">▶</button>
+            </div>
         </div>
-        <button id="btn-jump" class="touch-btn">JUMP</button>
+        <button id="btn-jump" class="touch-btn jump-btn">JUMP</button>
     </div>
 
     <!-- 엔트리 포인트: Module 방식 -->

@@ -4,6 +4,23 @@
 import { CONFIG } from './config.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// --- 30년차 케로의 충돌 감지 시스템 (Bounding Box) ---
+// 모든 충돌 가능한 엔티티가 가져야 할 기본 로직
+const Collidable = (superclass) => class extends superclass {
+    setupBoundingBox() {
+        this.boundingBox = new THREE.Box3();
+        // 모델 로딩이 완료된 후, 또는 매 프레임 업데이트 필요
+    }
+
+    updateBoundingBox() {
+        if (this.group) {
+            this.boundingBox.setFromObject(this.group);
+        } else if (this.mesh) {
+            this.boundingBox.setFromObject(this.mesh);
+        }
+    }
+};
+
 /**
  * 플레이어(신랑/신부) 클래스 - 3D 모델 및 애니메이션 포함
  */
@@ -14,12 +31,6 @@ export class PlayerEntity {
         this.mixer = null;
         this.actions = {}; 
         this.currentState = 'idle';
-
-        // 30년차 케로의 관성 시스템
-        this.velocity = new THREE.Vector3(0, 0, 0);
-        this.acceleration = 1.8; // 가속도 (조금 더 상향)
-        this.friction = 0.93;   // 마찰력 (자연스러운 감속)
-        this.maxSpeed = CONFIG.PHYSICS.MOVE_SPEED;
 
         this.loader = new GLTFLoader();
         this.loadModel();
@@ -51,7 +62,7 @@ export class PlayerEntity {
             if (this.actions['idle']) this.actions['idle'].play();
             else if (gltf.animations.length > 0) this.mixer.clipAction(gltf.animations[0]).play();
             
-            this.updateBoundingBox(); 
+            this.updateBoundingBox(); // 모델 로드 후 최초 BoundingBox 계산
         }, 
         undefined, 
         (error) => {
@@ -67,39 +78,12 @@ export class PlayerEntity {
         );
         cube.castShadow = true;
         this.group.add(cube);
-        this.updateBoundingBox();
+        this.updateBoundingBox(); // 대체 모델 생성 후 BoundingBox 계산
     }
     
     update(delta) {
         if (this.mixer) this.mixer.update(delta);
-
-        // 속도에 따른 마찰력 적용 (자연스러운 감속)
-        this.velocity.x *= this.friction;
-        this.velocity.z *= this.friction;
-
-        // 정지 상태에 가까워지면 속도를 0으로 고정
-        if (this.velocity.length() < 0.001) {
-            this.velocity.set(0, 0, 0);
-        }
-
-        this.updateBoundingBox(); 
-    }
-
-    /**
-     * 외부(main.js)에서 입력 방향을 받아 속도를 변화시킵니다.
-     */
-    applyInput(inputX, inputZ) {
-        if (inputX !== 0 || inputZ !== 0) {
-            // 입력 방향으로 가속
-            this.velocity.x += inputX * this.acceleration * 0.01;
-            this.velocity.z += inputZ * this.acceleration * 0.01;
-
-            // 최대 속도 제한
-            const speed = this.velocity.length();
-            if (speed > this.maxSpeed) {
-                this.velocity.divideScalar(speed).multiplyScalar(this.maxSpeed);
-            }
-        }
+        this.updateBoundingBox(); // 매 프레임 BoundingBox를 현재 위치로 갱신
     }
 
     updateBoundingBox() {
@@ -123,56 +107,15 @@ export class PlayerEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
-/**
- * 🏝️ 기억의 섬(Memory Island) 클래스
- */
-export class IslandEntity {
-    constructor(x, z, radius = 25, color = 0xf5f5f5) {
-        this.group = new THREE.Group();
-        this.radius = radius; // 낙하 체크를 위해 반지름 저장
-        
-        // 섬 본체 (원형 플랫폼)
-        const geometry = new THREE.CylinderGeometry(radius, radius, 2, 32);
-        const material = new THREE.MeshStandardMaterial({ 
-            color: color, 
-            roughness: 0.8,
-            metalness: 0.1
-        });
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = -1; // 상단이 y=0에 오도록 설정
-        this.mesh.receiveShadow = true;
-        this.group.add(this.mesh);
-
-        // 섬 아래쪽 바위 장식 (디테일)
-        const rockGeo = new THREE.ConeGeometry(radius * 1.1, 10, 8);
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-        const bottom = new THREE.Mesh(rockGeo, rockMat);
-        bottom.position.y = -6;
-        bottom.rotation.x = Math.PI;
-        this.group.add(bottom);
-
-        this.group.position.set(x, 0, z);
-        
-        this.boundingBox = new THREE.Box3();
-        this.updateBoundingBox();
-    }
-
-    updateBoundingBox() {
-        this.group.updateWorldMatrix(true, true);
-        this.boundingBox.setFromObject(this.group);
-    }
-
-    addTo(scene) { scene.add(this.group); }
-}
 
 /**
- * 길거리 소품... (기존 클래스들)
+ * 길거리 소품 (쓰레기통, 쓰레기봉투 등) 클래스
  */
 export class PropEntity {
     constructor(x, z, modelPath, scale = 1.0) {
         this.group = new THREE.Group();
         this.loader = new GLTFLoader();
-        this.boundingBox = new THREE.Box3(); 
+        this.boundingBox = new THREE.Box3(); // BoundingBox 초기화
         
         this.loader.load(modelPath, (gltf) => {
             const model = gltf.scene;
@@ -184,6 +127,7 @@ export class PropEntity {
                 }
             });
             this.group.add(model);
+            // 모델이 로드되고 그룹에 추가된 후 BoundingBox를 계산
             this.updateBoundingBox(); 
         }, undefined, (error) => {
             console.warn(`⚠️ 소품 모델 로드 실패 (${modelPath}):`, error);
@@ -192,7 +136,9 @@ export class PropEntity {
         this.group.position.set(x, 0, z);
     }
 
+    // Prop은 정적이므로 BoundingBox를 한 번만 계산하면 됨
     updateBoundingBox() {
+        // 모델이 완전히 로드될 때까지 기다렸다가 계산
         this.group.updateWorldMatrix(true, true);
         this.boundingBox.setFromObject(this.group);
     }
@@ -200,6 +146,8 @@ export class PropEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
+
+// 이하 BuildingEntity, StationEntity 등 기존 코드는 그대로 유지...
 export class BuildingEntity {
     constructor(x, z, config = {}) {
         const { w = 6 + Math.random() * 6, h = 20 + Math.random() * 40, d = 6 + Math.random() * 6 } = config;
@@ -279,7 +227,7 @@ BuildingEntity.fitpetTex = BuildingEntity.createLogoTexture('핏펫', '#00aaff',
 export class StationEntity {
     constructor(x, z) {
         this.group = new THREE.Group();
-        this.boundingBox = new THREE.Box3(); 
+        this.boundingBox = new THREE.Box3(); // 충돌 감지용 BoundingBox
 
         const platform = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 12), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.STATION_PLATFORM }));
         platform.position.y = 0.2; platform.receiveShadow = true; this.group.add(platform);
@@ -326,8 +274,10 @@ export class TreeEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
+// 30년차 케로의 최적화: InstancedMesh를 사용한 가로등 엔티티
 export class InstancedStreetLightEntity {
     constructor(scene, maxCount = 200) {
+        // 1. 재료 준비 (단 한번만 생성)
         const postGeo = new THREE.CylinderGeometry(0.15, 0.15, 8);
         const headGeo = new THREE.BoxGeometry(2, 0.4, 1);
         const bulbGeo = new THREE.SphereGeometry(0.3, 8, 8);
@@ -336,6 +286,7 @@ export class InstancedStreetLightEntity {
         const headMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 2.5 });
 
+        // 2. InstancedMesh 생성 (각 파트별로)
         this.posts = new THREE.InstancedMesh(postGeo, postMat, maxCount);
         this.heads = new THREE.InstancedMesh(headGeo, headMat, maxCount);
         this.bulbs = new THREE.InstancedMesh(bulbGeo, bulbMat, maxCount);
@@ -348,24 +299,34 @@ export class InstancedStreetLightEntity {
         scene.add(this.bulbs);
 
         this.count = 0;
-        this.dummy = new THREE.Object3D(); 
+        this.dummy = new THREE.Object3D(); // 위치/회전/크기 설정을 위한 임시 객체
     }
 
+    // 3. 가로등 '설치' 함수
     addInstance(x, z) {
         if (this.count >= this.posts.count) return;
+
         const dummy = this.dummy;
+
+        // 기둥 위치 설정
         dummy.position.set(x, 4, z);
         dummy.updateMatrix();
         this.posts.setMatrixAt(this.count, dummy.matrix);
+
+        // 헤드 위치 설정
         dummy.position.set(x + 0.8, 8, z);
         dummy.updateMatrix();
         this.heads.setMatrixAt(this.count, dummy.matrix);
+
+        // 전구 위치 설정
         dummy.position.set(x + 1.5, 7.7, z);
         dummy.updateMatrix();
         this.bulbs.setMatrixAt(this.count, dummy.matrix);
+
         this.count++;
     }
 
+    // 4. 모든 인스턴스의 위치 정보를 한번에 GPU로 전송
     finalize() {
         this.posts.count = this.count;
         this.heads.count = this.count;
@@ -394,7 +355,7 @@ export class CloudEntity {
 export class MemoryFragmentEntity {
     constructor(x, z, infoId) {
         this.infoId = infoId; 
-        this.group = new THREE.Group(); 
+        this.group = new THREE.Group(); // Mesh 대신 Group 사용 (통일성)
         
         const material = new THREE.MeshStandardMaterial({ 
             color: 0x555555,
@@ -406,11 +367,11 @@ export class MemoryFragmentEntity {
 
         const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
         this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = 2.5; 
+        this.mesh.position.y = 2.5; // 로컬 높이 설정
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        this.group.position.set(x, 0, z); 
+        this.group.position.set(x, 0, z); // 그룹 위치 설정
 
         this.boundingBox = new THREE.Box3();
         this.updateBoundingBox();
@@ -418,7 +379,7 @@ export class MemoryFragmentEntity {
 
     update(delta) {
         this.mesh.rotation.y += delta * 0.5;
-        this.updateBoundingBox(); 
+        this.updateBoundingBox(); // 매 프레임 업데이트 (회전/이동 대응)
     }
 
     updateBoundingBox() {
