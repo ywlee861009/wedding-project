@@ -4,6 +4,23 @@
 import { CONFIG } from './config.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// --- 30년차 케로의 충돌 감지 시스템 (Bounding Box) ---
+// 모든 충돌 가능한 엔티티가 가져야 할 기본 로직
+const Collidable = (superclass) => class extends superclass {
+    setupBoundingBox() {
+        this.boundingBox = new THREE.Box3();
+        // 모델 로딩이 완료된 후, 또는 매 프레임 업데이트 필요
+    }
+
+    updateBoundingBox() {
+        if (this.group) {
+            this.boundingBox.setFromObject(this.group);
+        } else if (this.mesh) {
+            this.boundingBox.setFromObject(this.mesh);
+        }
+    }
+};
+
 /**
  * 플레이어(신랑/신부) 클래스 - 3D 모델 및 애니메이션 포함
  */
@@ -12,17 +29,23 @@ export class PlayerEntity {
         this.group = new THREE.Group();
         this.model = null;
         this.mixer = null;
-        this.actions = {}; // 애니메이션 액션 저장소
-        this.currentState = 'idle'; // 현재 상태 (idle, walk 등)
+        this.actions = {}; 
+        this.currentState = 'idle';
 
         this.loader = new GLTFLoader();
         this.loadModel();
+
+        // 충돌 감지를 위한 BoundingBox 설정
+        this.boundingBox = new THREE.Box3(
+            new THREE.Vector3(-0.5, 0, -0.5),
+            new THREE.Vector3(0.5, 2, 0.5)
+        );
     }
 
     loadModel() {
         this.loader.load(CONFIG.PLAYER.MODEL_PATH, (gltf) => {
             this.model = gltf.scene;
-            this.model.scale.set(1.5, 1.5, 1.5); // 모델 크기 조정
+            this.model.scale.set(1.5, 1.5, 1.5);
             this.model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -30,20 +53,16 @@ export class PlayerEntity {
                 }
             });
             this.group.add(this.model);
-
-            // 애니메이션 믹서 설정
+            
             this.mixer = new THREE.AnimationMixer(this.model);
             gltf.animations.forEach((clip) => {
                 this.actions[clip.name.toLowerCase()] = this.mixer.clipAction(clip);
             });
-
-            // 기본 동작(idle 또는 첫 번째 애니메이션) 재생
+            
             if (this.actions['idle']) this.actions['idle'].play();
-            else if (gltf.animations.length > 0) {
-                this.mixer.clipAction(gltf.animations[0]).play();
-            }
-
-            console.log('✅ Player Model Loaded:', gltf.animations.map(a => a.name));
+            else if (gltf.animations.length > 0) this.mixer.clipAction(gltf.animations[0]).play();
+            
+            this.updateBoundingBox(); // 모델 로드 후 최초 BoundingBox 계산
         }, 
         undefined, 
         (error) => {
@@ -51,8 +70,7 @@ export class PlayerEntity {
             this.createFallbackModel();
         });
     }
-
-    // 모델 파일이 없을 때 보여줄 기본 큐브
+    
     createFallbackModel() {
         const cube = new THREE.Mesh(
             new THREE.BoxGeometry(CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE),
@@ -60,27 +78,27 @@ export class PlayerEntity {
         );
         cube.castShadow = true;
         this.group.add(cube);
+        this.updateBoundingBox(); // 대체 모델 생성 후 BoundingBox 계산
     }
-
-    // 애니메이션 프레임 업데이트
+    
     update(delta) {
         if (this.mixer) this.mixer.update(delta);
+        this.updateBoundingBox(); // 매 프레임 BoundingBox를 현재 위치로 갱신
     }
 
-    // 상태 변경 (예: 걷기 -> 멈춤)
+    updateBoundingBox() {
+        this.group.updateWorldMatrix(true, true);
+        this.boundingBox.setFromObject(this.group);
+    }
+    
     setState(newState) {
         if (this.currentState === newState) return;
-        
-        // 대소문자 구분 없이 애니메이션 찾기 (예: walk, Walk, WALK 모두 대응)
         const targetName = newState.toLowerCase();
         const actionKey = Object.keys(this.actions).find(key => key.toLowerCase() === targetName);
-        
         if (!actionKey) return;
-
         const prevActionKey = Object.keys(this.actions).find(key => key.toLowerCase() === this.currentState.toLowerCase());
         const prevAction = prevActionKey ? this.actions[prevActionKey] : null;
         const nextAction = this.actions[actionKey];
-
         if (prevAction) prevAction.fadeOut(0.2);
         nextAction.reset().fadeIn(0.2).play();
         this.currentState = newState;
@@ -89,6 +107,47 @@ export class PlayerEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
+
+/**
+ * 길거리 소품 (쓰레기통, 쓰레기봉투 등) 클래스
+ */
+export class PropEntity {
+    constructor(x, z, modelPath, scale = 1.0) {
+        this.group = new THREE.Group();
+        this.loader = new GLTFLoader();
+        this.boundingBox = new THREE.Box3(); // BoundingBox 초기화
+        
+        this.loader.load(modelPath, (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(scale, scale, scale);
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            this.group.add(model);
+            // 모델이 로드되고 그룹에 추가된 후 BoundingBox를 계산
+            this.updateBoundingBox(); 
+        }, undefined, (error) => {
+            console.warn(`⚠️ 소품 모델 로드 실패 (${modelPath}):`, error);
+        });
+
+        this.group.position.set(x, 0, z);
+    }
+
+    // Prop은 정적이므로 BoundingBox를 한 번만 계산하면 됨
+    updateBoundingBox() {
+        // 모델이 완전히 로드될 때까지 기다렸다가 계산
+        this.group.updateWorldMatrix(true, true);
+        this.boundingBox.setFromObject(this.group);
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+
+// 이하 BuildingEntity, StationEntity 등 기존 코드는 그대로 유지...
 export class BuildingEntity {
     constructor(x, z, config = {}) {
         const { w = 6 + Math.random() * 6, h = 20 + Math.random() * 40, d = 6 + Math.random() * 6 } = config;
@@ -126,7 +185,7 @@ export class BuildingEntity {
     }
 
     addWindows(w, h, d) {
-        const winGeo = new THREE.PlaneGeometry(0.6, 0.8); // 창문 크기도 약간 키움
+        const winGeo = new THREE.PlaneGeometry(0.6, 0.8);
         const winMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffaa00, emissiveIntensity: 1.5 });
         const rows = Math.floor(h / 3);
         const cols = Math.floor(w / 2);
@@ -146,28 +205,19 @@ export class BuildingEntity {
 
 BuildingEntity.createLogoTexture = function(text, bgColor, textColor) {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024; canvas.height = 256; // 해상도 2배 확장
+    canvas.width = 1024; canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    
-    // 배경 (브랜드 색상)
     ctx.fillStyle = bgColor; 
     ctx.fillRect(0, 0, 1024, 256);
-    
-    // 검정 테두리
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 20;
     ctx.strokeRect(10, 10, 1004, 236);
-
-    // 아주 검정색 글자
     ctx.fillStyle = '#000000'; 
     ctx.font = 'bold 165px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif'; 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    
-    // 그림자 제거 (깔끔한 검정 글자)
     ctx.fillText(text, 512, 135);
-    
     const tex = new THREE.CanvasTexture(canvas);
-    tex.anisotropy = 16; // 텍스처 선명도 향상
+    tex.anisotropy = 16;
     return tex;
 };
 
@@ -177,6 +227,8 @@ BuildingEntity.fitpetTex = BuildingEntity.createLogoTexture('핏펫', '#00aaff',
 export class StationEntity {
     constructor(x, z) {
         this.group = new THREE.Group();
+        this.boundingBox = new THREE.Box3(); // 충돌 감지용 BoundingBox
+
         const platform = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 12), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.STATION_PLATFORM }));
         platform.position.y = 0.2; platform.receiveShadow = true; this.group.add(platform);
 
@@ -197,7 +249,15 @@ export class StationEntity {
         const sign = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 0.3), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas) }));
         sign.position.set(0, 6.2, -2.5); this.group.add(sign);
         this.group.position.set(x, 0, z);
+
+        this.updateBoundingBox();
     }
+
+    updateBoundingBox() {
+        this.group.updateWorldMatrix(true, true);
+        this.boundingBox.setFromObject(this.group);
+    }
+
     addTo(scene) { scene.add(this.group); }
 }
 
@@ -214,18 +274,67 @@ export class TreeEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
-export class StreetLightEntity {
-    constructor(x, z) {
-        this.group = new THREE.Group();
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-        post.position.y = 4; this.group.add(post);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 1), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-        head.position.set(0.8, 8, 0); this.group.add(head);
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 2.5 }));
-        bulb.position.set(1.5, 7.7, 0); this.group.add(bulb);
-        this.group.position.set(x, 0, z);
+// 30년차 케로의 최적화: InstancedMesh를 사용한 가로등 엔티티
+export class InstancedStreetLightEntity {
+    constructor(scene, maxCount = 200) {
+        // 1. 재료 준비 (단 한번만 생성)
+        const postGeo = new THREE.CylinderGeometry(0.15, 0.15, 8);
+        const headGeo = new THREE.BoxGeometry(2, 0.4, 1);
+        const bulbGeo = new THREE.SphereGeometry(0.3, 8, 8);
+
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 2.5 });
+
+        // 2. InstancedMesh 생성 (각 파트별로)
+        this.posts = new THREE.InstancedMesh(postGeo, postMat, maxCount);
+        this.heads = new THREE.InstancedMesh(headGeo, headMat, maxCount);
+        this.bulbs = new THREE.InstancedMesh(bulbGeo, bulbMat, maxCount);
+
+        this.posts.castShadow = true;
+        this.posts.receiveShadow = true;
+
+        scene.add(this.posts);
+        scene.add(this.heads);
+        scene.add(this.bulbs);
+
+        this.count = 0;
+        this.dummy = new THREE.Object3D(); // 위치/회전/크기 설정을 위한 임시 객체
     }
-    addTo(scene) { scene.add(this.group); }
+
+    // 3. 가로등 '설치' 함수
+    addInstance(x, z) {
+        if (this.count >= this.posts.count) return;
+
+        const dummy = this.dummy;
+
+        // 기둥 위치 설정
+        dummy.position.set(x, 4, z);
+        dummy.updateMatrix();
+        this.posts.setMatrixAt(this.count, dummy.matrix);
+
+        // 헤드 위치 설정
+        dummy.position.set(x + 0.8, 8, z);
+        dummy.updateMatrix();
+        this.heads.setMatrixAt(this.count, dummy.matrix);
+
+        // 전구 위치 설정
+        dummy.position.set(x + 1.5, 7.7, z);
+        dummy.updateMatrix();
+        this.bulbs.setMatrixAt(this.count, dummy.matrix);
+
+        this.count++;
+    }
+
+    // 4. 모든 인스턴스의 위치 정보를 한번에 GPU로 전송
+    finalize() {
+        this.posts.count = this.count;
+        this.heads.count = this.count;
+        this.bulbs.count = this.count;
+        this.posts.instanceMatrix.needsUpdate = true;
+        this.heads.instanceMatrix.needsUpdate = true;
+        this.bulbs.instanceMatrix.needsUpdate = true;
+    }
 }
 
 export class CloudEntity {
@@ -242,29 +351,43 @@ export class CloudEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
-/**
- * 길거리 소품 (쓰레기통, 쓰레기봉투 등) 클래스
- */
-export class PropEntity {
-    constructor(x, z, modelPath, scale = 1.0) {
-        this.group = new THREE.Group();
-        this.loader = new GLTFLoader();
+
+export class MemoryFragmentEntity {
+    constructor(x, z, infoId) {
+        this.infoId = infoId; 
+        this.group = new THREE.Group(); // Mesh 대신 Group 사용 (통일성)
         
-        this.loader.load(modelPath, (gltf) => {
-            const model = gltf.scene;
-            model.scale.set(scale, scale, scale);
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            this.group.add(model);
-        }, undefined, (error) => {
-            console.warn(`⚠️ 소품 모델 로드 실패 (${modelPath}):`, error);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0x555555,
+            emissive: 0xffd700, 
+            emissiveIntensity: 1.2,
+            metalness: 0.2,
+            roughness: 0.5,
         });
 
-        this.group.position.set(x, 0, z);
+        const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.position.y = 2.5; // 로컬 높이 설정
+        this.mesh.castShadow = true;
+        this.group.add(this.mesh);
+
+        this.group.position.set(x, 0, z); // 그룹 위치 설정
+
+        this.boundingBox = new THREE.Box3();
+        this.updateBoundingBox();
     }
-    addTo(scene) { scene.add(this.group); }
+
+    update(delta) {
+        this.mesh.rotation.y += delta * 0.5;
+        this.updateBoundingBox(); // 매 프레임 업데이트 (회전/이동 대응)
+    }
+
+    updateBoundingBox() {
+        this.group.updateWorldMatrix(true, true);
+        this.boundingBox.setFromObject(this.group);
+    }
+
+    addTo(scene) {
+        scene.add(this.group);
+    }
 }
