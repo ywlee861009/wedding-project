@@ -19,41 +19,48 @@ const statusDisplay = document.getElementById('status-log');
 
 // --- 1. Scene SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e); // 깊고 우아한 밤하늘 색
-scene.fog = new THREE.FogExp2(0x1a1a2e, 0.008); // 좀 더 부드러운 안개
+scene.background = new THREE.Color(0x87ceeb); // 쨍한 하늘색 (Sky Blue)
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.005); // 부드러운 대기 안개
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
-renderer.toneMapping = THREE.ReinhardToneMapping; // 시네마틱 톤맵핑
-renderer.toneMappingExposure = 1.2;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; // Coastal World 스타일의 풍부한 색감
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
 // --- 1.1 POST-PROCESSING SETUP ---
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
-// ✨ 블룸 효과: 밝은 부분에 은은한 광채를 줌
+// ✨ 블룸 효과: 화사한 대낮 느낌을 위해 임계값 조정
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5, // 강도
-    0.4, // 반경
-    0.85 // 임계값
+    0.3, // 너무 과하지 않게 줄임
+    0.4, 
+    0.9  // 밝은 부분만 살짝 번지게
 );
 composer.addPass(bloomPass);
 
 // --- 2. LIGHTS ---
-const ambient = new THREE.AmbientLight(0x666699, 0.8); // 보랏빛 은은한 조명
+const ambient = new THREE.AmbientLight(0xffffff, 1.2); // 대폭 밝게 (전체적인 화사함)
 scene.add(ambient);
 
-const directional = new THREE.DirectionalLight(0xffccaa, 1.2); // 따뜻한 황금빛 태양
-directional.position.set(50, 100, 50);
+const directional = new THREE.DirectionalLight(0xffffff, 2.5); // 강한 태양광
+directional.position.set(100, 200, 100);
 directional.castShadow = true;
+// 그림자 품질 향상 (30년차 케로의 노하우)
+directional.shadow.mapSize.width = 2048;
+directional.shadow.mapSize.height = 2048;
+directional.shadow.camera.left = -100;
+directional.shadow.camera.right = 100;
+directional.shadow.camera.top = 100;
+directional.shadow.camera.bottom = -100;
 scene.add(directional);
 
-const followLight = new THREE.PointLight(0xffaa44, 15.0, 50); // 캐릭터 주변 광채
+const followLight = new THREE.PointLight(0xffffff, 20.0, 30); // 캐릭터 강조
 scene.add(followLight);
 
 // --- 3. OBJECTS ---
@@ -61,15 +68,15 @@ const entitiesToUpdate = [];
 const collidableEntities = []; 
 const islands = []; // 섬 목록 (낙하 체크용)
 
-// 🌊 바다 (Sea Plane)
+// 🌊 바다 (Sea Plane) - 더 투명하고 밝게
 const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(5000, 5000), 
     new THREE.MeshStandardMaterial({ 
-        color: 0x003366, 
+        color: 0x00aaff, 
         transparent: true, 
-        opacity: 0.6,
-        roughness: 0.1,
-        metalness: 0.5
+        opacity: 0.7,
+        roughness: 0.05,
+        metalness: 0.2
     })
 );
 sea.rotation.x = -Math.PI / 2;
@@ -112,30 +119,6 @@ islands.push(stationIsland);
 const doksanStation = new StationEntity(250, -10);
 doksanStation.addTo(scene);
 collidableEntities.push(doksanStation);
-const streetlightManager = new InstancedStreetLightEntity(scene);
-
-for (let i = 0; i < 40; i++) {
-    const lx1 = i * 40;
-    const lz1 = -16;
-    streetlightManager.addInstance(lx1, lz1);
-
-    const lx2 = i * 40 + 20;
-    const lz2 = 16;
-    streetlightManager.addInstance(lx2, lz2);
-
-    if (Math.random() > 0.5) {
-        const isBag = Math.random() > 0.5;
-        const modelPath = isBag ? './assets/models/trash_bag.glb' : './assets/models/trash_can.glb';
-        const prop = new PropEntity(lx1 + (Math.random() - 0.5) * 5, lz1 + (isBag ? (Math.random() * 2 + 1) : 1), modelPath, isBag ? 2.4 : 3.6);
-        prop.addTo(scene);
-        collidableEntities.push(prop); 
-    }
-}
-streetlightManager.finalize();
-
-for (let i = 2; i < 150; i++) { if (i % 3 !== 0) { new TreeEntity(i * 15, -18).addTo(scene); new TreeEntity(i * 15, 18).addTo(scene); } }
-for (let i = -10; i < 120; i++) { new BuildingEntity(i * 15 + Math.random() * 10, -35 - Math.random() * 10).addTo(scene); new BuildingEntity(i * 18 + Math.random() * 15, -60 - Math.random() * 20).addTo(scene); }
-for (let i = -10; i < 60; i++) { new CloudEntity(i * 40 + Math.random() * 30, 45 + Math.random() * 15, -60 - Math.random() * 60).addTo(scene); }
 
 // --- 4. LOGIC & PHYSICS ---
 let lastTime = performance.now();
@@ -160,8 +143,28 @@ function animate() {
     // 통합 입력 데이터 획득
     const inputData = input.update();
     
-    // 플레이어에게 입력 적용 (가속도 발생)
-    player.applyInput(inputData.x, inputData.z);
+    // --- 30년차 케로의 카메라 기반 이동 로직 ---
+    if (inputData.x !== 0 || inputData.z !== 0) {
+        // 1. 카메라의 정면/우측 방향 벡터 계산 (Y축 무시)
+        const cameraAngle = Math.atan2(
+            camera.position.x - player.group.position.x,
+            camera.position.z - player.group.position.z
+        );
+
+        // 2. 입력 벡터를 카메라 각도에 맞춰 회전
+        const rotatedX = inputData.x * Math.cos(cameraAngle) + inputData.z * Math.sin(cameraAngle);
+        const rotatedZ = -inputData.x * Math.sin(cameraAngle) + inputData.z * Math.cos(cameraAngle);
+
+        // 3. 플레이어에게 회전된 입력 적용
+        player.applyInput(rotatedX, rotatedZ);
+
+        // 4. 캐릭터 회전 (부드럽게)
+        const targetRotation = Math.atan2(rotatedX, rotatedZ);
+        player.group.rotation.y = THREE.MathUtils.lerp(player.group.rotation.y, targetRotation, 0.15);
+        player.setState('walk');
+    } else {
+        player.setState('idle');
+    }
 
     // --- 관성 기반 이동 및 충돌 감지 ---
     if (player.velocity.length() > 0.001) {
@@ -183,16 +186,9 @@ function animate() {
         
         if (canMove) {
             player.group.position.copy(nextPos);
-            // 부드러운 회전 (Coastal World 스타일)
-            const targetRotation = Math.atan2(player.velocity.x, player.velocity.z);
-            player.group.rotation.y = THREE.MathUtils.lerp(player.group.rotation.y, targetRotation, 0.15);
-            player.setState('walk');
         } else {
-            player.velocity.set(0, 0, 0); // 충돌 시 속도 초기화
-            player.setState('idle');
+            player.velocity.set(0, 0, 0); 
         }
-    } else {
-        player.setState('idle');
     }
 
     // --- 지면 감지 및 낙하 로직 (30년차 케로의 물리 시스템) ---

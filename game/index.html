@@ -36,35 +36,35 @@
             padding: 0 40px; z-index: 200; pointer-events: none;
         }
         
-        /* 🕹️ 조이스틱 디자인 */
-        #joystick-container {
-            width: 120px; height: 120px;
+        /* 🕹️ 플로팅 조이스틱 디자인 (스크립트에서 동적 생성) */
+        .joystick-base {
+            position: fixed; width: 100px; height: 100px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3);
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px); pointer-events: auto;
-            opacity: 0.5; transition: opacity 0.3s;
+            backdrop-filter: blur(5px); pointer-events: none;
+            z-index: 200; display: none; /* 터치 시에만 표시 */
         }
-        #joystick-knob {
-            width: 50px; height: 50px;
+        .joystick-knob {
+            position: absolute; width: 40px; height: 40px;
             background: rgba(255, 255, 255, 0.8);
             border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            left: 50%; top: 50%; margin-left: -20px; margin-top: -20px;
         }
 
-        .touch-btn {
+        .jump-btn {
+            position: fixed; bottom: 40px; right: 40px;
             width: 80px; height: 80px; border-radius: 50%; border: none;
-            background: rgba(0, 170, 255, 0.3); color: white;
+            background: rgba(0, 170, 255, 0.4); color: white;
             font-size: 16px; font-weight: bold;
             display: flex; justify-content: center; align-items: center;
             user-select: none; -webkit-tap-highlight-color: transparent;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-            pointer-events: auto;
+            pointer-events: auto; z-index: 200;
         }
-        .touch-btn:active { background: rgba(0, 170, 255, 0.6); transform: scale(0.9); }
+        .jump-btn:active { background: rgba(0, 170, 255, 0.7); transform: scale(0.9); }
 
         @media (max-width: 768px) {
             #pc-instruction { display: none; }
-            #mobile-controls { display: flex !important; }
         }
     </style>
 </head>
@@ -75,13 +75,11 @@
         <div id="status-log">시스템 로드 중...</div>
     </div>
 
-    <!-- 모바일 터치 컨트롤러 (V2 조이스틱) -->
-    <div id="mobile-controls" style="display: none;">
-        <div id="joystick-container">
-            <div id="joystick-knob"></div>
-        </div>
-        <button id="btn-jump" class="touch-btn">JUMP</button>
+    <!-- 모바일 터치 컨트롤러 (V3 플로팅 조이스틱용 컨테이너) -->
+    <div id="joystick-base" class="joystick-base">
+        <div id="joystick-knob" class="joystick-knob"></div>
     </div>
+    <button id="btn-jump" class="jump-btn" style="display: none;">JUMP</button>
 
     <!-- 엔트리 포인트: Module 방식 -->
     <script type="module" src="main.js"></script>

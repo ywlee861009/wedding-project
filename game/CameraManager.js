@@ -1,46 +1,104 @@
 /**
- * 🎥 CameraManager - Smooth 3rd Person Follow System
- * 플레이어를 부드럽게 추적하고 회전시키는 카메라 관리 모듈입니다.
+ * 🎥 CameraManager V3 - Free Orbit & Smart Follow System
+ * Coastal World 스타일의 자유 시점 및 스마트 추적 시스템입니다.
  */
 export class CameraManager {
     constructor(camera, target) {
         this.camera = camera;
         this.target = target; // 추적 대상 (PlayerEntity.group)
 
-        // 설정값
-        this.offset = new THREE.Vector3(-12, 8, 0); // 플레이어 기준 기본 위치
-        this.lookAtOffset = new THREE.Vector3(5, 1, 0); // 플레이어 기준 주시점
-        this.followSpeed = 0.08; // 카메라 추적 속도 (0 ~ 1, 낮을수록 부드러움)
+        // 구형 좌표계 설정 (Orbit)
+        this.distance = 25;
+        this.theta = 0; // 수평 회전
+        this.phi = Math.PI / 4; // 수직 회전 (45도)
         
-        // 회전 상태
-        this.rotationY = 0;
-        this.rotationX = -0.3; // 약간 아래를 내려다봄
+        // 보간용 목표값
+        this.targetTheta = 0;
+        this.targetPhi = Math.PI / 4;
+        this.targetDistance = 25;
 
-        this.initEvents();
+        // 제한값
+        this.minPhi = 0.1;
+        this.maxPhi = Math.PI / 2.1;
+        this.minDistance = 10;
+        this.maxDistance = 50;
+
+        // 드래그 상태
+        this.isDragging = false;
+        this.pointerId = null;
+        this.lastPointerPos = new THREE.Vector2();
+
+        this.init();
     }
 
-    initEvents() {
-        // 나중에 마우스/터치 드래그로 카메라 회전을 원할 경우 여기서 구현
+    init() {
+        // 화면 오른쪽 절반 드래그로 회전
+        window.addEventListener('pointerdown', (e) => {
+            if (e.clientX > window.innerWidth / 2) {
+                this.isDragging = true;
+                this.pointerId = e.pointerId;
+                this.lastPointerPos.set(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!this.isDragging || e.pointerId !== this.pointerId) return;
+
+            const deltaX = e.clientX - this.lastPointerPos.x;
+            const deltaY = e.clientY - this.lastPointerPos.y;
+
+            this.targetTheta -= deltaX * 0.005;
+            this.targetPhi += deltaY * 0.005;
+            this.targetPhi = Math.max(this.minPhi, Math.min(this.maxPhi, this.targetPhi));
+
+            this.lastPointerPos.set(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (e.pointerId === this.pointerId) {
+                this.isDragging = false;
+                this.pointerId = null;
+            }
+        });
+
+        // 휠 줌 기능
+        window.addEventListener('wheel', (e) => {
+            this.targetDistance += e.deltaY * 0.05;
+            this.targetDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.targetDistance));
+        });
     }
 
     /**
-     * 매 프레임 업데이트하여 카메라 위치를 보간합니다.
+     * 매 프레임 업데이트하여 카메라 위치를 계산합니다.
      */
     update() {
         if (!this.target) return;
 
-        // 1. 목표 위치 계산
-        // 플레이어의 현재 위치에 오프셋을 더함
-        const idealOffset = this.offset.clone();
-        // 플레이어의 회전에 맞춰 오프셋도 회전시키고 싶다면 여기에 로직 추가 가능
-        
-        const targetPos = this.target.position.clone().add(idealOffset);
-        
-        // 2. 현재 카메라 위치를 목표 위치로 부드럽게 이동 (Lerp)
-        this.camera.position.lerp(targetPos, this.followSpeed);
+        // 1. 값 보간 (Smoothing)
+        this.theta = THREE.MathUtils.lerp(this.theta, this.targetTheta, 0.1);
+        this.phi = THREE.MathUtils.lerp(this.phi, this.targetPhi, 0.1);
+        this.distance = THREE.MathUtils.lerp(this.distance, this.targetDistance, 0.1);
 
-        // 3. 주시점 설정
-        const lookAtPos = this.target.position.clone().add(this.lookAtOffset);
-        this.camera.lookAt(lookAtPos);
+        // 2. 구형 좌표계를 직교 좌표계(XYZ)로 변환
+        const x = this.distance * Math.sin(this.phi) * Math.cos(this.theta);
+        const y = this.distance * Math.cos(this.phi);
+        const z = this.distance * Math.sin(this.phi) * Math.sin(this.theta);
+
+        // 3. 카메라 위치 설정
+        const targetWorldPos = new THREE.Vector3();
+        this.target.getWorldPosition(targetWorldPos);
+        
+        this.camera.position.set(
+            targetWorldPos.x + x,
+            targetWorldPos.y + y,
+            targetWorldPos.z + z
+        );
+
+        // 4. 캐릭터 주시 (약간 위를 주시하여 발쪽이 아닌 몸쪽을 보게 함)
+        const lookAtTarget = targetWorldPos.clone().add(new THREE.Vector3(0, 1.5, 0));
+        this.camera.lookAt(lookAtTarget);
+
+        // 5. 스마트 팔로우: 이동 시 캐릭터 뒤쪽으로 서서히 정렬
+        // 플레이어의 현재 진행 방향(velocity)을 감지하여 시점 조정 가능 (추가 예정)
     }
 }
