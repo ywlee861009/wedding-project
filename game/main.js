@@ -85,13 +85,13 @@ scene.add(sea);
 
 import { IslandEntity } from './entities.js';
 
-// 첫 번째 섬 (시작점)
-const startIsland = new IslandEntity(0, 0, 30, 0xfdfdfd);
+// 첫 번째 섬 (시작점) - 크기 확대 및 초록색 적용
+const startIsland = new IslandEntity(0, 0, 50, 0x7ba65d);
 startIsland.addTo(scene);
 islands.push(startIsland);
 
-// 두 번째 섬 (기억의 조각 1)
-const memoryIsland1 = new IslandEntity(120, 0, 40, 0xfffafa);
+// 두 번째 섬 (기억의 조각 1) - 훨씬 크게 제작
+const memoryIsland1 = new IslandEntity(180, 0, 80, 0x6b9452);
 memoryIsland1.addTo(scene);
 islands.push(memoryIsland1);
 
@@ -106,17 +106,17 @@ const input = new InputManager();
 const cameraManager = new CameraManager(camera, player.group);
 
 // '기억의 조각'
-const memoryFragment1 = new MemoryFragmentEntity(120, 0, 'first_date');
+const memoryFragment1 = new MemoryFragmentEntity(180, 0, 'first_date');
 memoryFragment1.addTo(scene);
 entitiesToUpdate.push(memoryFragment1);
 collidableEntities.push(memoryFragment1); 
 
-// 배치 로직 (Legacy 지원 - 독산역을 세 번째 섬으로!)
-const stationIsland = new IslandEntity(250, 0, 50, 0xf0f0f0);
+// 배치 로직 (독산역 섬도 광활하게 변경)
+const stationIsland = new IslandEntity(400, 0, 100, 0x5a8247);
 stationIsland.addTo(scene);
 islands.push(stationIsland);
 
-const doksanStation = new StationEntity(250, -10);
+const doksanStation = new StationEntity(400, -20);
 doksanStation.addTo(scene);
 collidableEntities.push(doksanStation);
 
@@ -140,33 +140,40 @@ function animate() {
 
     const { MOVE_SPEED, GRAVITY, JUMP_POWER, ROAD_LIMIT } = CONFIG.PHYSICS;
     
-    // 통합 입력 데이터 획득
+    // 통합 입력 데이터 획득 (WASD + Click-to-Move 통합)
     const inputData = input.update();
     
-    // --- 30년차 케로의 카메라 기반 이동 로직 ---
+    // --- Coastal World 스타일 카메라 기반 이동 로직 ---
     if (inputData.x !== 0 || inputData.z !== 0) {
-        // 1. 카메라의 정면/우측 방향 벡터 계산 (Y축 무시)
-        const cameraAngle = Math.atan2(
-            camera.position.x - player.group.position.x,
-            camera.position.z - player.group.position.z
-        );
+        // 1. 카메라의 현재 수평 회전 각도(Y축 회전) 추출
+        // 30년차 케로의 팁: 카메라의 Quaternion에서 직접 각도를 뽑아내는 것이 가장 정확합니다.
+        const cameraRotation = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+        const angle = cameraRotation.y;
 
-        // 2. 입력 벡터를 카메라 각도에 맞춰 회전
-        const rotatedX = inputData.x * Math.cos(cameraAngle) + inputData.z * Math.sin(cameraAngle);
-        const rotatedZ = -inputData.x * Math.sin(cameraAngle) + inputData.z * Math.cos(cameraAngle);
+        // 2. 입력 벡터를 카메라 각도에 맞춰 회전 (표준 회전 행렬 적용)
+        // 화면 위쪽 클릭(z=-1) 시 카메라가 보는 정면으로 이동하게 함
+        const rotatedX = inputData.x * Math.cos(angle) + inputData.z * Math.sin(angle);
+        const rotatedZ = -inputData.x * Math.sin(angle) + inputData.z * Math.cos(angle);
 
-        // 3. 플레이어에게 회전된 입력 적용
+        // 3. 플레이어 가속 적용
         player.applyInput(rotatedX, rotatedZ);
 
-        // 4. 캐릭터 회전 (부드럽게)
+        // 4. 캐릭터 회전 (진행 방향으로 부드럽게)
         const targetRotation = Math.atan2(rotatedX, rotatedZ);
-        player.group.rotation.y = THREE.MathUtils.lerp(player.group.rotation.y, targetRotation, 0.15);
+        
+        // 회전 값이 튀지 않도록 lerpAngle 로직 적용 (360도 회전 방지)
+        const currentRot = player.group.rotation.y;
+        let diff = targetRotation - currentRot;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        player.group.rotation.y = currentRot + diff * 0.15;
+
         player.setState('walk');
     } else {
         player.setState('idle');
     }
 
-    // --- 관성 기반 이동 및 충돌 감지 ---
+    // --- 관성 이동 및 충돌 판정 ---
     if (player.velocity.length() > 0.001) {
         const moveVector = player.velocity.clone();
         const nextPos = player.group.position.clone().add(moveVector);
@@ -191,21 +198,19 @@ function animate() {
         }
     }
 
-    // --- 지면 감지 및 낙하 로직 (30년차 케로의 물리 시스템) ---
+    // --- 지면 감지 및 낙하 로직 ---
     let isOnGround = false;
     for (const island of islands) {
         const dist = Math.hypot(
             player.group.position.x - island.group.position.x, 
             player.group.position.z - island.group.position.z
         );
-        // 섬의 반지름 안쪽이고, y축 높이가 지면 근처일 때
         if (dist < island.radius && player.group.position.y >= CONFIG.PLAYER.START_Y - 0.1) {
             isOnGround = true;
             break;
         }
     }
 
-    // 점프 및 중력 처리
     if (inputData.jump && isOnGround && player.group.position.y <= CONFIG.PLAYER.START_Y + 0.01) {
         velocityY = JUMP_POWER;
     }
@@ -213,24 +218,21 @@ function animate() {
     velocityY += GRAVITY;
     player.group.position.y += velocityY;
 
-    // 지면 착지 처리
     if (isOnGround && player.group.position.y < CONFIG.PLAYER.START_Y) {
         player.group.position.y = CONFIG.PLAYER.START_Y;
         velocityY = 0;
     }
 
-    // 바다로 추락 시 리스폰 (무한 낙하 방지)
     if (player.group.position.y < -30) {
-        player.group.position.set(0, 5, 0); // 시작 지점 상공으로 리스폰
+        player.group.position.set(0, 5, 0);
         player.velocity.set(0, 0, 0);
         velocityY = 0;
     }
 
-    // 매니저 업데이트
-    cameraManager.update();
+    // --- 시스템 매니저 업데이트 ---
+    cameraManager.update(player.velocity); // 카메라에 플레이어 속도 전달 (Smart Follow)
     followLight.position.set(player.group.position.x, 5, player.group.position.z);
 
-    // ✨ 일반 렌더러 대신 컴포저를 사용하여 포스트 프로세싱 결과 출력
     composer.render();
 }
 
