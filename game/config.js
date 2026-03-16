@@ -5,15 +5,15 @@
 
 export const CONFIG = {
     SCENE: {
-        BACKGROUND: 0x87ceeb,
-        FOG_COLOR:  0xa8d8ea,
-        FOG_DENSITY: 0.0013  // 3x 맵 스케일에 맞춰 조정
+        BACKGROUND: 0xb8e8fa,   // 맑은 하늘 — 밝고 따뜻한 하늘색
+        FOG_COLOR:  0xcceeff,   // 안개도 하늘색 계열로
+        FOG_DENSITY: 0.0008     // 덜 뿌옇게 — 더 멀리 보임
     },
     LIGHTS: {
-        AMBIENT: 0xfff5e0,
-        AMBIENT_INTENSITY: 1.4,
-        DIRECTIONAL: 0xfffacd,
-        DIRECTIONAL_INTENSITY: 2.8,
+        AMBIENT: 0xfff0d0,
+        AMBIENT_INTENSITY: 1.0,           // 약간 낮춰 그림자 대비 살림
+        DIRECTIONAL: 0xffe090,            // 골든아워 따뜻한 노란빛
+        DIRECTIONAL_INTENSITY: 3.8,
         FOLLOW_LIGHT: 0xffcc44,
         FOLLOW_INTENSITY: 8.0
     },
@@ -48,7 +48,7 @@ export const CONFIG = {
         SAND_RING:   0xf2d16b,
         ROCK_BOTTOM: 0x7a6a55,
 
-        SEA_SURFACE: 0x2ab5c8,
+        SEA_SURFACE: 0x28cce8,  // 더 선명한 청록
 
         BRIDGE_PLANK: 0xa0785a,
         BRIDGE_RAIL:  0x7a5a42,

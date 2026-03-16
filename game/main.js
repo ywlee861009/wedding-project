@@ -5,7 +5,8 @@ import { CONFIG } from './config.js';
 import {
     StationEntity, TreeEntity,
     CloudEntity, PlayerEntity, AnimatedPropEntity, FlyingBirdEntity,
-    SeoulTerrain, FlowerEntity, BenchEntity, ExclamationMarker
+    SeoulTerrain, FlowerEntity, BenchEntity, ExclamationMarker,
+    DuckFamilyEntity
 } from './entities.js';
 import { InputManager } from './InputManager.js';
 import { CameraManager } from './CameraManager.js';
@@ -28,23 +29,23 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.2;  // 살짝 밝게
 document.body.appendChild(renderer.domElement);
 
 // ── 3. POST-PROCESSING ────────────────────────────────
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.3, 0.4, 0.9
-);
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.18, 0.5, 0.85
+);  // strength 낮춰 뿌연 느낌 제거, radius 올려 부드럽게
 composer.addPass(bloomPass);
 
 // ── 4. LIGHTS ─────────────────────────────────────────
 const ambient = new THREE.AmbientLight(CONFIG.LIGHTS.AMBIENT, CONFIG.LIGHTS.AMBIENT_INTENSITY);
 scene.add(ambient);
 
-// HemisphereLight — 하늘(파랑)↔땅(황토) 양방향으로 부드러운 입체감
-const hemi = new THREE.HemisphereLight(0x87ceeb, 0xc8a86a, 0.9);
+// HemisphereLight — 하늘(밝은 하늘색) ↔ 땅(따뜻한 황금빛)
+const hemi = new THREE.HemisphereLight(0xb8e8fa, 0xd4aa60, 1.1);
 scene.add(hemi);
 
 const directional = new THREE.DirectionalLight(CONFIG.LIGHTS.DIRECTIONAL, CONFIG.LIGHTS.DIRECTIONAL_INTENSITY);
@@ -172,6 +173,248 @@ new CloudEntity( 120, 40,  180).addTo(scene);
 new CloudEntity(-195, 42,   60).addTo(scene);
 new CloudEntity( 210, 38, -120).addTo(scene);
 
+// ── 6-1. 서울 25개 구 이름 레이블 ─────────────────────
+(function addDistrictLabels() {
+    // [이름, x, z]  — 3× 스케일 기준, 실제 지리 위치에 근사
+    const DISTRICTS = [
+        // ── 강북권 ────────────────────────────────────
+        ['도봉구',     75, -185],   // 도봉산 서쪽
+        ['강북구',    -20, -150],   // 북한산 동쪽
+        ['노원구',    180, -165],   // 수락산 서쪽
+        ['성북구',     62, -108],   // 북악산 동쪽
+        ['은평구',   -115, -120],   // 북한산 서쪽
+        // ── 도심권 ────────────────────────────────────
+        ['종로구',     -5,  -72],   // 경복궁·광화문
+        ['중구',       42,  -22],   // 남산 북쪽
+        ['서대문구',  -82,  -60],
+        ['동대문구',   95,  -52],
+        ['성동구',    130,  -22],
+        ['중랑구',    182,  -52],
+        ['광진구',    220,  -10],   // 아차산 남쪽
+        // ── 한강 인접 ─────────────────────────────────
+        ['용산구',     35,   28],   // 남산 남쪽
+        ['마포구',    -95,   18],
+        // ── 강남권 ────────────────────────────────────
+        ['영등포구',  -90,  108],   // 여의도 옆
+        ['강서구',   -215,   88],
+        ['양천구',   -152,   88],
+        ['구로구',   -132,  130],
+        ['금천구',   -132,  168],   // 독산역 근처
+        ['동작구',    -28,  125],
+        ['관악구',     22,  188],   // 관악산 북쪽
+        ['서초구',     80,  132],
+        ['강남구',    138,  120],
+        ['송파구',    205,  132],
+        ['강동구',    242,  115],
+    ];
+
+    function makeLabel(name) {
+        const W = 256, H = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width  = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, W, H);
+
+        ctx.font         = 'bold 27px "Malgun Gothic","Apple Gothic","Noto Sans KR",sans-serif';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+
+        // 외곽선 (stroke) — 먼저 그려야 fill 위에 묻히지 않음
+        ctx.strokeStyle = 'rgba(80,50,30,0.55)';
+        ctx.lineWidth   = 3.5;
+        ctx.lineJoin    = 'round';
+        ctx.strokeText(name, W / 2, H / 2);
+
+        // 채우기 (fill)
+        ctx.fillStyle = 'rgba(255,252,245,0.82)';
+        ctx.fillText(name, W / 2, H / 2);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            transparent: true,
+            depthWrite: false,
+        });
+        const sprite = new THREE.Sprite(mat);
+        const w = name.length * 8 + 6;   // 글자 수에 비례한 너비
+        sprite.scale.set(w, 8, 1);
+        return sprite;
+    }
+
+    for (const [name, x, z] of DISTRICTS) {
+        const h   = seoulMap.getHeightAt(x, z);
+        const lbl = makeLabel(name);
+        lbl.position.set(x, h + 2.5, z);
+        scene.add(lbl);
+    }
+}());
+
+// ── 6-2. 꽃·벤치 배치 ────────────────────────────────
+(function spreadDecoration() {
+    // 헬퍼: 꽃 1개 추가 (지형 높이 자동 적용)
+    function addFlower(x, z, color) {
+        const f = new FlowerEntity(x, z, color);
+        f.group.position.y = seoulMap.getHeightAt(x, z);
+        f.addTo(scene);
+    }
+    // 헬퍼: 벤치 1개 추가
+    function addBench(x, z, rotY = 0) {
+        const b = new BenchEntity(x, z, rotY);
+        b.group.position.y = seoulMap.getHeightAt(x, z);
+        b.addTo(scene);
+    }
+
+    const { FLOWER_PINK, FLOWER_WHITE, FLOWER_GOLD } = CONFIG.COLORS;
+
+    // ── 한강 북쪽 강변 — 핑크·흰 꽃 + 벤치 ──────────
+    for (let x = -195; x <= 195; x += 10) {
+        const jx = x + (Math.random() - 0.5) * 6;
+        const jz = 41 + (Math.random() - 0.5) * 2;
+        addFlower(jx, jz, Math.random() < 0.6 ? FLOWER_PINK : FLOWER_WHITE);
+    }
+    for (let x = -160; x <= 160; x += 45) {
+        addBench(x + (Math.random()-0.5)*8, 42, Math.random() * Math.PI * 2);
+    }
+
+    // ── 한강 남쪽 강변 — 골드·핑크 꽃 + 벤치 ─────────
+    for (let x = -195; x <= 195; x += 10) {
+        const jx = x + (Math.random() - 0.5) * 6;
+        const jz = 101 + (Math.random() - 0.5) * 2;
+        addFlower(jx, jz, Math.random() < 0.5 ? FLOWER_GOLD : FLOWER_PINK);
+    }
+    for (let x = -150; x <= 150; x += 50) {
+        addBench(x + (Math.random()-0.5)*8, 102, Math.random() * Math.PI * 2);
+    }
+
+    // ── 남산 일대 — 벚꽃 핑크 군집 ────────────────────
+    for (let i = 0; i < 30; i++) {
+        addFlower(
+            10 + Math.random() * 55,
+            -22 + Math.random() * 44,
+            FLOWER_PINK
+        );
+    }
+    addBench(35, -10, 0);
+    addBench(52,   8, Math.PI / 3);
+
+    // ── 경복궁·광화문 주변 — 흰 꽃 ───────────────────
+    for (let i = 0; i < 20; i++) {
+        addFlower(
+            -38 + Math.random() * 58,
+            -88 + Math.random() * 42,
+            FLOWER_WHITE
+        );
+    }
+    addBench(-10, -68, -Math.PI / 6);
+    addBench( 18, -72,  Math.PI / 5);
+
+    // ── 도봉구 (플레이어 시작) — 야생화 골드 ──────────
+    for (let i = 0; i < 18; i++) {
+        addFlower(
+            40 + Math.random() * 70,
+            -200 + Math.random() * 40,
+            Math.random() < 0.5 ? FLOWER_GOLD : FLOWER_WHITE
+        );
+    }
+
+    // ── 관악산 기슭 — 골드 꽃 ─────────────────────────
+    for (let i = 0; i < 18; i++) {
+        addFlower(
+            -18 + Math.random() * 55,
+            158 + Math.random() * 40,
+            FLOWER_GOLD
+        );
+    }
+
+    // ── 금천구 (신부 위치) 주변 — 핑크 꽃 ─────────────
+    for (let i = 0; i < 15; i++) {
+        addFlower(
+            -155 + Math.random() * 50,
+            148 + Math.random() * 36,
+            FLOWER_PINK
+        );
+    }
+    addBench(-132, 160, Math.PI / 2);
+}());
+
+// ── 6-3. 구역별 저폴리 빌딩 ──────────────────────────
+const buildingBoxes = [];   // AABB 충돌용 [{x, z, hw, hd}]
+
+(function addBuildings() {
+    // 팔레트
+    const GLASS  = [0x7a9cbc, 0x8aafc8, 0x6888a8, 0x90a8c4, 0xb4ccd8];
+    const WARM   = [0xf0d898, 0xe8c478, 0xf5dfa8, 0xddc888, 0xecd09c];
+    const PASTEL = [0xf4c8c0, 0xc8d8f4, 0xd0f0d8, 0xf4e8c0, 0xe8c8f4, 0xf0d4e0];
+    const APT    = [0xd8e8f8, 0xc8d8f0, 0xe0eef8, 0xccdaee]; // 아파트 연청
+
+    function cluster(cx, cz, count, palette, hMin, hMax, sMin, sMax) {
+        for (let i = 0; i < count; i++) {
+            const x = cx + (Math.random() - 0.5) * 52;
+            const z = cz + (Math.random() - 0.5) * 52;
+
+            // 강 안쪽·경사 심한 곳 스킵
+            if (z > seoulMap.riverZMin - 3 && z < seoulMap.riverZMax + 3) continue;
+            const gH = seoulMap.getHeightAt(x, z);
+            if (gH > 4) continue;
+
+            const bh = hMin + Math.random() * (hMax - hMin);
+            const bw = sMin + Math.random() * (sMax - sMin);
+            const bd = sMin + Math.random() * (sMax - sMin);
+            const col = palette[Math.floor(Math.random() * palette.length)];
+
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(bw, bh, bd),
+                new THREE.MeshStandardMaterial({ color: col, roughness: 0.72, metalness: 0.08 })
+            );
+            mesh.position.set(x, gH + bh / 2, z);
+            mesh.rotation.y = (Math.random() - 0.5) * 0.25;
+            mesh.castShadow    = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            // 충돌 박스 등록 (플레이어 반경 0.8 + 회전 여유 포함)
+            buildingBoxes.push({
+                x,  z,
+                hw: bw / 2 + 0.8,
+                hd: bd / 2 + 0.8,
+            });
+        }
+    }
+
+    // ── 강남권 고층 ──────────────────────────────────
+    cluster( 135,  122, 15, GLASS,  8, 20, 5, 9);   // 강남
+    cluster( 205,  132, 12, GLASS,  6, 16, 4, 8);   // 송파
+    cluster(  80,  133, 12, GLASS,  6, 15, 4, 8);   // 서초
+    cluster( -88,  110, 12, GLASS,  8, 18, 5, 9);   // 영등포/여의도
+
+    // ── 도심 중고층 ───────────────────────────────────
+    cluster(  42,  -25, 10, WARM,   5, 12, 4, 7);   // 중구
+    cluster(  -5,  -70, 12, WARM,   3,  8, 4, 7);   // 종로
+    cluster(  95,  -52, 10, WARM,   4, 10, 4, 6);   // 동대문
+    cluster( 130,  -22, 10, WARM,   3,  8, 3, 6);   // 성동
+
+    // ── 파스텔 주거 중층 ───────────────────────────────
+    cluster( -95,   18, 12, PASTEL, 4,  9, 3, 6);   // 마포
+    cluster(-152,   88, 10, PASTEL, 4,  9, 4, 6);   // 양천
+    cluster( -28,  125, 10, PASTEL, 3,  8, 3, 6);   // 동작
+    cluster( -82,  -60, 10, PASTEL, 3,  7, 3, 5);   // 서대문
+    cluster( 220,  -10,  8, PASTEL, 3,  8, 3, 6);   // 광진
+    cluster(  60, -108,  8, PASTEL, 3,  7, 3, 5);   // 성북
+
+    // ── 저층 주거 ──────────────────────────────────────
+    cluster(-215,   88,  8, WARM,   3,  7, 3, 6);   // 강서
+    cluster(-130,  142,  8, WARM,   3,  8, 4, 6);   // 구로/금천
+    cluster( 178,  -55, 10, WARM,   3,  8, 3, 5);   // 중랑
+    cluster( 240,   80,  8, WARM,   4, 10, 4, 7);   // 강동
+
+    // ── 아파트 단지 (고층 슬림) ────────────────────────
+    cluster( 178, -163,  8, APT,   10, 18, 4, 6);   // 노원
+    cluster(  75, -185,  8, APT,    6, 14, 4, 6);   // 도봉
+    cluster( -20, -150,  8, APT,    4, 10, 3, 5);   // 강북
+    cluster(-115, -120,  8, APT,    4,  9, 3, 5);   // 은평
+}());
+
 // ── 7. 독산역 ─────────────────────────────────────────
 const stH = seoulMap.getHeightAt(-165, 156);
 const doksanStation = new StationEntity(-165, 156);
@@ -182,8 +425,8 @@ doksanStation.addTo(scene);
 const entitiesToUpdate = [];
 
 // 신부 — 광화문 (15, -24)
-const brideH = seoulMap.getHeightAt(15, -24);
-const bride = new AnimatedPropEntity(15, -24, './assets/models/bride.glb', 1.5);
+const brideH = seoulMap.getHeightAt(-132, 165);
+const bride = new AnimatedPropEntity(-132, 165, './assets/models/bride.glb', 1.5);
 bride.group.position.y = brideH;
 bride.group.rotation.y = Math.PI;
 bride.addTo(scene);
@@ -191,7 +434,7 @@ entitiesToUpdate.push(bride);
 
 // 신부 머리 위 느낌표
 const exclamation = new ExclamationMarker();
-exclamation.setPosition(15, brideH + 7, -24);
+exclamation.setPosition(-132, brideH + 7, 165);
 exclamation.addTo(scene);
 entitiesToUpdate.push(exclamation);
 
@@ -203,14 +446,10 @@ npc1.group.rotation.y = -Math.PI * 0.5;
 npc1.addTo(scene);
 entitiesToUpdate.push(npc1);
 
-// 오리 — 한강변
-for (const [dx, dz] of [[-60,54],[15,90],[120,60],[180,84]]) {
-    const dkH = seoulMap.getHeightAt(dx, dz);
-    const dk  = new AnimatedPropEntity(dx, dz, './assets/models/duck.glb', 0.8);
-    dk.group.position.y = dkH;
-    dk.addTo(scene);
-    entitiesToUpdate.push(dk);
-}
+// 오리 가족 — 한강 순찰 (엄마·아빠 + 애기 10마리)
+const duckFamily = new DuckFamilyEntity(seoulMap);
+duckFamily.addTo(scene);
+entitiesToUpdate.push(duckFamily);
 
 // ── 9. 새들 ───────────────────────────────────────────
 
@@ -239,7 +478,7 @@ const parrot2 = new FlyingBirdEntity(24, 195, './assets/models/parrot.glb',
 parrot2.addTo(scene); entitiesToUpdate.push(parrot2);
 
 // ── 10. 플레이어 ──────────────────────────────────────
-const startX = -15, startZ = -105; // 경복궁 북쪽
+const startX = 75, startZ = -185; // 도봉구
 const startH = seoulMap.getHeightAt(startX, startZ);
 const player = new PlayerEntity();
 player.group.position.set(startX, startH + CONFIG.PLAYER.START_Y, startZ);
@@ -247,7 +486,7 @@ player.addTo(scene);
 entitiesToUpdate.push(player);
 
 const input = new InputManager();
-const cameraManager = new CameraManager(camera, player.group);
+const cameraManager = new CameraManager(camera, player.group, scene);
 
 // ── 11. PHYSICS CONSTANTS ─────────────────────────────
 const BOUND_X = 300;
@@ -257,6 +496,13 @@ function canMoveTo(x, z) {
     const inRiver = z > seoulMap.riverZMin && z < seoulMap.riverZMax;
     if (!inRiver) return true;
     return seoulMap.bridgeXs.some(bx => Math.abs(x - bx) < seoulMap.bridgeHalfWidth);
+}
+
+function collidesWithBuilding(x, z) {
+    for (const b of buildingBoxes) {
+        if (Math.abs(x - b.x) < b.hw && Math.abs(z - b.z) < b.hd) return true;
+    }
+    return false;
 }
 
 // ── 12. 대화 시스템 ───────────────────────────────────
@@ -391,7 +637,7 @@ window.addEventListener('keydown', e => {
             advanceDialogue();
         } else {
             // 신부 근처에서만 열림 — animate loop에서 체크 후 버튼 표시로도 처리
-            const bx = 15, bz = -24;
+            const bx = -132, bz = 165;
             const dx = player.group.position.x - bx;
             const dz = player.group.position.z - bz;
             if (Math.sqrt(dx * dx + dz * dz) < INTERACT_RANGE) openDialogue();
@@ -449,8 +695,8 @@ function animate() {
 
     // ── 신부 근접 체크 ───────────────────────────────
     const distToBride = Math.sqrt(
-        Math.pow(player.group.position.x - 15, 2) +
-        Math.pow(player.group.position.z - (-24), 2)
+        Math.pow(player.group.position.x - (-132), 2) +
+        Math.pow(player.group.position.z - 165, 2)
     );
     const nearBride = distToBride < INTERACT_RANGE;
     interactBtn.style.display = (nearBride && !dialogueActive) ? 'block' : 'none';
@@ -470,8 +716,8 @@ function animate() {
     }
 
     if (inputData.x !== 0 || inputData.z !== 0) {
-        const cameraRot = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-        const angle     = cameraRot.y;
+        // camera.quaternion 대신 순수 궤도각(theta) 사용 — 숄더 오프셋으로 인한 대각 이동 방지
+        const angle = cameraManager.theta;
         const rotX = inputData.x * Math.cos(angle) + inputData.z * Math.sin(angle);
         const rotZ = -inputData.x * Math.sin(angle) + inputData.z * Math.cos(angle);
         player.applyInput(rotX, rotZ);
@@ -487,23 +733,25 @@ function animate() {
         player.setState('idle');
     }
 
-    // 수평 이동 + 경계/한강 체크
+    // 수평 이동 + 경계/한강/빌딩 충돌 체크
     if (player.velocity.length() > 0.001) {
         const next = player.group.position.clone().add(player.velocity);
         const ex   = next.x / (BOUND_X + 1);
         const ez   = next.z / (BOUND_Z + 1);
         const outOfBounds = ex * ex + ez * ez >= 1;
-        const inRiver     = !canMoveTo(next.x, next.z);
+        const blocked     = !canMoveTo(next.x, next.z) || collidesWithBuilding(next.x, next.z);
 
-        if (!outOfBounds && !inRiver) {
+        if (!outOfBounds && !blocked) {
             player.group.position.x = next.x;
             player.group.position.z = next.z;
-        } else if (!outOfBounds && inRiver) {
-            // 강변 슬라이딩
-            if (canMoveTo(player.group.position.x + player.velocity.x, player.group.position.z))
-                player.group.position.x += player.velocity.x;
-            else if (canMoveTo(player.group.position.x, player.group.position.z + player.velocity.z))
-                player.group.position.z += player.velocity.z;
+        } else if (!outOfBounds) {
+            // 슬라이딩: X/Z 축 각각 시도
+            const nx = player.group.position.x + player.velocity.x;
+            const nz = player.group.position.z + player.velocity.z;
+            const canX = canMoveTo(nx, player.group.position.z) && !collidesWithBuilding(nx, player.group.position.z);
+            const canZ = canMoveTo(player.group.position.x, nz) && !collidesWithBuilding(player.group.position.x, nz);
+            if (canX) player.group.position.x = nx;
+            else if (canZ) player.group.position.z = nz;
             player.velocity.set(0, 0, 0);
         } else {
             player.velocity.set(0, 0, 0);

@@ -2,7 +2,18 @@
  * 💍 Wedding Journey Entities Module
  */
 import { CONFIG } from './config.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader }  from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+// DRACOLoader 공용 인스턴스 — Three.js 와 동일한 unpkg CDN 사용
+const _dracoLoader = new DRACOLoader();
+_dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+
+function makeGLTFLoader() {
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(_dracoLoader);
+    return loader;
+}
 
 /**
  * 플레이어(신랑/신부) 클래스
@@ -20,7 +31,7 @@ export class PlayerEntity {
         this.friction = 0.93;
         this.maxSpeed = CONFIG.PHYSICS.MOVE_SPEED;
 
-        this.loader = new GLTFLoader();
+        this.loader = makeGLTFLoader();
         this.loadModel();
 
         this.boundingBox = new THREE.Box3(
@@ -265,7 +276,7 @@ export class FlyingBirdEntity {
         this.angle      = options.startAngle  || (Math.random() * Math.PI * 2);
 
         const scale = options.scale || 0.02;
-        const loader = new GLTFLoader();
+        const loader = makeGLTFLoader();
 
         loader.load(modelPath, (gltf) => {
             const model = gltf.scene;
@@ -436,11 +447,22 @@ export class AnimatedPropEntity {
     constructor(x, z, modelPath, scale = 1.0) {
         this.group = new THREE.Group();
         this.mixer = null;
-        const loader = new GLTFLoader();
+        const loader = makeGLTFLoader();
+
+        // 모델 로드 전 임시 박스 (로드 완료 시 제거)
+        this._placeholder = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 3, 3),   // 위치 확인용 크게
+            new THREE.MeshStandardMaterial({ color: 0xf5c842 })
+        );
+        this.group.add(this._placeholder);
 
         loader.load(modelPath, (gltf) => {
+            if (this._placeholder) {
+                this.group.remove(this._placeholder);
+                this._placeholder = null;
+            }
             const model = gltf.scene;
-            model.scale.set(scale, scale, scale);
+            model.scale.set(scale, scale, scale);;
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -455,6 +477,7 @@ export class AnimatedPropEntity {
             }
         }, undefined, (err) => {
             console.warn(`AnimatedPropEntity load failed (${modelPath})`, err);
+            // 폴백: 노란 박스 유지 (위치 확인용)
         });
 
         this.group.position.set(x, 0, z);
@@ -468,12 +491,92 @@ export class AnimatedPropEntity {
 }
 
 /**
+ * 🦆 한강 오리 가족 — 엄마·아빠 + 애기 10마리
+ *   · 부모는 한강을 따라 좌우로 순찰
+ *   · 애기들은 엄마 주변에 부드럽게 따라다님
+ */
+export class DuckFamilyEntity {
+    /**
+     * 2열종대 대형:
+     *   열0(엄마) | 열1(아빠)
+     *   행1-B0   | 행1-B1
+     *   행2-B2   | 행2-B3
+     *   ...      | ...
+     *
+     * 한강 북쪽 강변(z≈38)을 x축 방향으로 왔다갔다
+     */
+    constructor(seoulMap) {
+        this._time     = 0;
+        this._ducks    = [];
+        this._seoulMap = seoulMap;
+
+        const PARENT_SCALE = 8.0;
+        const BABY_SCALE   = PARENT_SCALE / 3;
+
+        // row=0: 엄마(col=0), 아빠(col=1)
+        this._addDuck(PARENT_SCALE, 0, 0);
+        this._addDuck(PARENT_SCALE, 1, 0);
+
+        // row=1~5: 애기 2마리씩 (총 10마리)
+        for (let row = 1; row <= 5; row++) {
+            this._addDuck(BABY_SCALE, 0, row);
+            this._addDuck(BABY_SCALE, 1, row);
+        }
+    }
+
+    _addDuck(scale, col, row) {
+        const BANK_Z     = 38;
+        const COL_OFFSET = 0.2;  // 두 열 간격
+        const startZ = BANK_Z + (col === 0 ? COL_OFFSET : -COL_OFFSET);
+        const entity = new AnimatedPropEntity(0, startZ, './assets/models/duck.glb', scale);
+        entity.group.position.y = 0.1;
+        this._ducks.push({ entity, col, row, curX: 0, curZ: startZ });
+    }
+
+    update(delta) {
+        this._time += delta;
+        const t         = this._time;
+        const SPEED     = 0.04;   // 느린 순찰
+        const AMP       = 175;    // 한강 폭만큼 왔다갔다
+        const BANK_Z    = 38;
+        const COL_OFFSET = 3;
+        const ROW_LAG   = 0.6;    // 행마다 지연(초) — 애기들이 부모 뒤를 따름
+
+        for (const duck of this._ducks) {
+            // 각 행은 앞 행보다 ROW_LAG초 늦은 위치를 목표로 삼음
+            const lag  = duck.row * ROW_LAG;
+            const tgtX = Math.sin((t - lag) * SPEED) * AMP;
+            const tgtZ = BANK_Z + (duck.col === 0 ? COL_OFFSET : -COL_OFFSET);
+
+            const prevX = duck.curX;
+            duck.curX += (tgtX - duck.curX) * Math.min(1, delta * 2.5);
+            duck.curZ += (tgtZ - duck.curZ) * Math.min(1, delta * 2.5);
+
+            const groundY = this._seoulMap ? this._seoulMap.getHeightAt(duck.curX, duck.curZ) : 0;
+            duck.entity.group.position.set(duck.curX, groundY + 0.1, duck.curZ);
+
+            // 이동 방향 회전 (x축 이동이므로 동/서만 존재)
+            const dx = duck.curX - prevX;
+            if (Math.abs(dx) > 0.001) {
+                duck.entity.group.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+            }
+
+            duck.entity.update(delta);
+        }
+    }
+
+    addTo(scene) {
+        for (const { entity } of this._ducks) entity.addTo(scene);
+    }
+}
+
+/**
  * 길거리 소품
  */
 export class PropEntity {
     constructor(x, z, modelPath, scale = 1.0) {
         this.group = new THREE.Group();
-        this.loader = new GLTFLoader();
+        this.loader = makeGLTFLoader();
         this.boundingBox = new THREE.Box3();
 
         this.loader.load(modelPath, (gltf) => {
@@ -856,12 +959,13 @@ export class SeoulTerrain {
 
     _vertexColor(x, z, h) {
         const b = (x / 300) ** 2 + (z / 240) ** 2;
-        if (b > 1)    return new THREE.Color(0x4a7040);
-        if (b > 0.88) return new THREE.Color(0x9a8260); // 경계 절벽/흙
-        if (h > 8)    return new THREE.Color(0x256020); // 산 정상 — 짙은 침엽수림
-        if (h > 4)    return new THREE.Color(0x48a030); // 산 중턱 — 선명한 초록
-        if (h > 1.5)  return new THREE.Color(0x88d855); // 공원/언덕 — 밝은 라임
-        return new THREE.Color(0xd0c8b0);               // 도심 — 따뜻한 베이지
+        if (b > 1)    return new THREE.Color(0x3a5e30);  // 외곽 — 어두운 숲
+        if (b > 0.88) return new THREE.Color(0x8a6840);  // 경계 절벽 — 흙갈색
+        if (h > 8)    return new THREE.Color(0x2a5c18);  // 산 정상 — 짙은 침엽수
+        if (h > 4)    return new THREE.Color(0x4aba28);  // 산 중턱 — 선명한 초록
+        if (h > 1.5)  return new THREE.Color(0x80d840);  // 공원/언덕 — 밝은 라임
+        if (h > 0.3)  return new THREE.Color(0xc8d890);  // 주택가 — 연두빛 크림
+        return new THREE.Color(0xf0e2b8);                // 도심/평지 — 따뜻한 아이보리
     }
 
     /** 캔버스 노이즈 텍스처 (sin 합성) — 유기적 지면 질감 */
@@ -935,8 +1039,8 @@ export class SeoulTerrain {
         const river = new THREE.Mesh(
             new THREE.PlaneGeometry(720, this._riverHW * 2),
             new THREE.MeshStandardMaterial({
-                color: 0x38c8e0,
-                emissive: 0x0a6080,
+                color: 0x20d4f0,
+                emissive: 0x0090a8,
                 emissiveIntensity: 0.18,
                 transparent: true, opacity: 0.88,
                 roughness: 0.03, metalness: 0.15
