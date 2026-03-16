@@ -5,26 +5,24 @@ import { CONFIG } from './config.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
- * 플레이어(신랑/신부) 클래스 - 3D 모델 및 애니메이션 포함
+ * 플레이어(신랑/신부) 클래스
  */
 export class PlayerEntity {
     constructor() {
         this.group = new THREE.Group();
         this.model = null;
         this.mixer = null;
-        this.actions = {}; 
+        this.actions = {};
         this.currentState = 'idle';
 
-        // 30년차 케로의 관성 시스템
         this.velocity = new THREE.Vector3(0, 0, 0);
-        this.acceleration = 1.8; // 가속도 (조금 더 상향)
-        this.friction = 0.93;   // 마찰력 (자연스러운 감속)
+        this.acceleration = 1.8;
+        this.friction = 0.93;
         this.maxSpeed = CONFIG.PHYSICS.MOVE_SPEED;
 
         this.loader = new GLTFLoader();
         this.loadModel();
 
-        // 충돌 감지를 위한 BoundingBox 설정
         this.boundingBox = new THREE.Box3(
             new THREE.Vector3(-0.5, 0, -0.5),
             new THREE.Vector3(0.5, 2, 0.5)
@@ -42,24 +40,24 @@ export class PlayerEntity {
                 }
             });
             this.group.add(this.model);
-            
+
             this.mixer = new THREE.AnimationMixer(this.model);
             gltf.animations.forEach((clip) => {
                 this.actions[clip.name.toLowerCase()] = this.mixer.clipAction(clip);
             });
-            
+
             if (this.actions['idle']) this.actions['idle'].play();
             else if (gltf.animations.length > 0) this.mixer.clipAction(gltf.animations[0]).play();
-            
-            this.updateBoundingBox(); 
-        }, 
-        undefined, 
+
+            this.updateBoundingBox();
+        },
+        undefined,
         (error) => {
             console.warn('⚠️ 3D 모델을 찾을 수 없습니다. 기본 파란 큐브로 대체합니다.', error);
             this.createFallbackModel();
         });
     }
-    
+
     createFallbackModel() {
         const cube = new THREE.Mesh(
             new THREE.BoxGeometry(CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE, CONFIG.PLAYER.SIZE),
@@ -69,32 +67,19 @@ export class PlayerEntity {
         this.group.add(cube);
         this.updateBoundingBox();
     }
-    
+
     update(delta) {
         if (this.mixer) this.mixer.update(delta);
-
-        // 속도에 따른 마찰력 적용 (자연스러운 감속)
         this.velocity.x *= this.friction;
         this.velocity.z *= this.friction;
-
-        // 정지 상태에 가까워지면 속도를 0으로 고정
-        if (this.velocity.length() < 0.001) {
-            this.velocity.set(0, 0, 0);
-        }
-
-        this.updateBoundingBox(); 
+        if (this.velocity.length() < 0.001) this.velocity.set(0, 0, 0);
+        this.updateBoundingBox();
     }
 
-    /**
-     * 외부(main.js)에서 입력 방향을 받아 속도를 변화시킵니다.
-     */
     applyInput(inputX, inputZ) {
         if (inputX !== 0 || inputZ !== 0) {
-            // 입력 방향으로 가속
             this.velocity.x += inputX * this.acceleration * 0.01;
             this.velocity.z += inputZ * this.acceleration * 0.01;
-
-            // 최대 속도 제한
             const speed = this.velocity.length();
             if (speed > this.maxSpeed) {
                 this.velocity.divideScalar(speed).multiplyScalar(this.maxSpeed);
@@ -106,7 +91,7 @@ export class PlayerEntity {
         this.group.updateWorldMatrix(true, true);
         this.boundingBox.setFromObject(this.group);
     }
-    
+
     setState(newState) {
         if (this.currentState === newState) return;
         const targetName = newState.toLowerCase();
@@ -127,32 +112,44 @@ export class PlayerEntity {
  * 🏝️ 기억의 섬(Memory Island) 클래스
  */
 export class IslandEntity {
-    constructor(x, z, radius = 25, color = 0xf5f5f5) {
+    constructor(x, z, radius = 25, color = 0xf5f5f5, options = {}) {
         this.group = new THREE.Group();
-        this.radius = radius; // 낙하 체크를 위해 반지름 저장
-        
-        // 섬 본체 (원형 플랫폼)
+        this.radius = radius;
+        this.sandRadius = radius + 8;
+
+        // 섬 본체
         const geometry = new THREE.CylinderGeometry(radius, radius, 2, 32);
-        const material = new THREE.MeshStandardMaterial({ 
-            color: color, 
-            roughness: 0.8,
-            metalness: 0.1
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.7,
+            metalness: 0.0
         });
         this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = -1; // 상단이 y=0에 오도록 설정
+        this.mesh.position.y = -1;
         this.mesh.receiveShadow = true;
         this.group.add(this.mesh);
 
-        // 섬 아래쪽 바위 장식 (디테일)
+        // 모래 링 (해변 효과)
+        const sandGeo = new THREE.CylinderGeometry(radius + 8, radius + 8, 1.0, 32);
+        const sandMat = new THREE.MeshStandardMaterial({
+            color: options.sandColor || CONFIG.COLORS.SAND_RING,
+            roughness: 0.9
+        });
+        const sandRing = new THREE.Mesh(sandGeo, sandMat);
+        sandRing.position.y = -1.0;
+        sandRing.receiveShadow = true;
+        this.group.add(sandRing);
+
+        // 섬 아래쪽 암벽
         const rockGeo = new THREE.ConeGeometry(radius * 1.1, 10, 8);
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const rockMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.ROCK_BOTTOM });
         const bottom = new THREE.Mesh(rockGeo, rockMat);
         bottom.position.y = -6;
         bottom.rotation.x = Math.PI;
         this.group.add(bottom);
 
         this.group.position.set(x, 0, z);
-        
+
         this.boundingBox = new THREE.Box3();
         this.updateBoundingBox();
     }
@@ -166,14 +163,213 @@ export class IslandEntity {
 }
 
 /**
- * 길거리 소품... (기존 클래스들)
+ * 🌉 다리 엔티티
+ */
+export class BridgeEntity {
+    constructor(startPos, endPos, startRadius, endRadius) {
+        this.group = new THREE.Group();
+        this.walkableZones = [];
+
+        const dx = endPos.x - startPos.x;
+        const dz = endPos.z - startPos.z;
+        const totalDist = Math.sqrt(dx * dx + dz * dz);
+        const dirX = dx / totalDist;
+        const dirZ = dz / totalDist;
+
+        const bridgeLength = Math.max(1, totalDist - startRadius - endRadius);
+        const angle = Math.atan2(dx, dz);
+
+        // 다리 시작 위치 (모래 끝에서 시작)
+        const midX = startPos.x + dirX * (startRadius + bridgeLength / 2);
+        const midZ = startPos.z + dirZ * (startRadius + bridgeLength / 2);
+
+        // 판자
+        const plankGeo = new THREE.BoxGeometry(CONFIG.PHYSICS.BRIDGE_WIDTH, 0.4, bridgeLength);
+        const plankMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BRIDGE_PLANK, roughness: 0.9 });
+        const plank = new THREE.Mesh(plankGeo, plankMat);
+        plank.position.set(midX, -0.2, midZ);
+        plank.rotation.y = angle;
+        plank.receiveShadow = true;
+        plank.castShadow = true;
+        this.group.add(plank);
+
+        // 난간 (좌/우)
+        const railMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BRIDGE_RAIL, roughness: 0.8 });
+        for (const side of [-1, 1]) {
+            const railGeo = new THREE.BoxGeometry(0.2, 1.2, bridgeLength);
+            const rail = new THREE.Mesh(railGeo, railMat);
+            const offsetX = Math.cos(angle) * side * (CONFIG.PHYSICS.BRIDGE_WIDTH / 2);
+            const offsetZ = -Math.sin(angle) * side * (CONFIG.PHYSICS.BRIDGE_WIDTH / 2);
+            rail.position.set(midX + offsetX, 0.8, midZ + offsetZ);
+            rail.rotation.y = angle;
+            rail.castShadow = true;
+            this.group.add(rail);
+        }
+
+        // 장식 기둥
+        const postMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BRIDGE_ROPE, roughness: 0.7 });
+        const postCount = Math.max(2, Math.floor(bridgeLength / 15));
+        for (let i = 0; i <= postCount; i++) {
+            const t = i / postCount;
+            const px = startPos.x + dirX * (startRadius + t * bridgeLength);
+            const pz = startPos.z + dirZ * (startRadius + t * bridgeLength);
+
+            for (const side of [-1, 1]) {
+                const postGeo = new THREE.CylinderGeometry(0.15, 0.15, 2.0, 6);
+                const post = new THREE.Mesh(postGeo, postMat);
+                const offsetX = Math.cos(angle) * side * (CONFIG.PHYSICS.BRIDGE_WIDTH / 2);
+                const offsetZ = -Math.sin(angle) * side * (CONFIG.PHYSICS.BRIDGE_WIDTH / 2);
+                post.position.set(px + offsetX, 1.0, pz + offsetZ);
+                post.castShadow = true;
+                this.group.add(post);
+            }
+        }
+
+        // 물리 구역: BRIDGE_WIDTH 간격으로 촘촘히 배치 → 구역 반지름이 겹쳐 틈 없음
+        const zoneSpacing = CONFIG.PHYSICS.BRIDGE_WIDTH; // 6유닛 간격
+        const zoneRadius = CONFIG.PHYSICS.BRIDGE_WIDTH;  // 반지름 6 → 인접 구역과 충분히 겹침
+        const zoneCount = Math.max(1, Math.ceil(bridgeLength / zoneSpacing));
+        for (let i = 0; i < zoneCount; i++) {
+            const t = (i + 0.5) / zoneCount;
+            const zx = startPos.x + dirX * (startRadius + t * bridgeLength);
+            const zz = startPos.z + dirZ * (startRadius + t * bridgeLength);
+            this.walkableZones.push({
+                radius: zoneRadius,
+                sandRadius: zoneRadius,
+                group: { position: new THREE.Vector3(zx, 0, zz) }
+            });
+        }
+    }
+
+    getWalkableZones() { return this.walkableZones; }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 🌸 꽃 엔티티
+ */
+export class FlowerEntity {
+    constructor(x, z, color = CONFIG.COLORS.FLOWER_PINK) {
+        this.group = new THREE.Group();
+
+        const stemGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 6);
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0x4a8a3a });
+        const stem = new THREE.Mesh(stemGeo, stemMat);
+        stem.position.y = 0.3;
+        this.group.add(stem);
+
+        const petalGeo = new THREE.SphereGeometry(0.2, 8, 8);
+        const petalMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 });
+        const petal = new THREE.Mesh(petalGeo, petalMat);
+        petal.scale.y = 0.5;
+        petal.position.y = 0.65;
+        this.group.add(petal);
+
+        this.group.position.set(x, 0, z);
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 🪑 벤치 엔티티
+ */
+export class BenchEntity {
+    constructor(x, z, rotY = 0) {
+        this.group = new THREE.Group();
+
+        const woodMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BENCH_WOOD, roughness: 0.8 });
+        const metalMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BENCH_METAL, roughness: 0.5, metalness: 0.6 });
+
+        // 시트
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 0.7), woodMat);
+        seat.position.y = 0.6;
+        seat.castShadow = true;
+        this.group.add(seat);
+
+        // 등받이
+        const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.5, 0.1), woodMat);
+        back.position.set(0, 0.95, -0.3);
+        back.castShadow = true;
+        this.group.add(back);
+
+        // 다리 4개
+        for (const [lx, lz] of [[-0.8, 0.25], [0.8, 0.25], [-0.8, -0.25], [0.8, -0.25]]) {
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.6, 0.1), metalMat);
+            leg.position.set(lx, 0.3, lz);
+            leg.castShadow = true;
+            this.group.add(leg);
+        }
+
+        this.group.position.set(x, 0, z);
+        this.group.rotation.y = rotY;
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 🌴 야자수 엔티티
+ */
+export class PalmTreeEntity {
+    constructor(x, z, leavesColor = CONFIG.COLORS.TREE_LEAVES_LUSH) {
+        this.group = new THREE.Group();
+
+        const trunkMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_TRUNK, roughness: 0.9 });
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 4.0, 8), trunkMat);
+        trunk.position.y = 2.0;
+        trunk.rotation.z = 0.15;
+        trunk.castShadow = true;
+        this.group.add(trunk);
+
+        // 캐노피 (넓적한 원뿔)
+        const leavesMat = new THREE.MeshStandardMaterial({ color: leavesColor, roughness: 0.7 });
+        const canopy = new THREE.Mesh(new THREE.ConeGeometry(2.5, 2.0, 8), leavesMat);
+        canopy.position.set(0.6, 5.0, 0);
+        canopy.castShadow = true;
+        this.group.add(canopy);
+
+        this.group.position.set(x, 0, z);
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 🌲 나무 엔티티 (잎 색상 파라미터화)
+ */
+export class TreeEntity {
+    constructor(x, z, leavesColor = CONFIG.COLORS.TREE_LEAVES) {
+        this.group = new THREE.Group();
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.3, 1.5),
+            new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_TRUNK })
+        );
+        const leaves = new THREE.Mesh(
+            new THREE.ConeGeometry(1.2, 2.5, 8),
+            new THREE.MeshStandardMaterial({ color: leavesColor })
+        );
+        trunk.position.y = 0.75;
+        leaves.position.y = 2.5;
+        trunk.castShadow = true;
+        leaves.castShadow = true;
+        this.group.add(trunk);
+        this.group.add(leaves);
+        this.group.position.set(x, 0, z);
+    }
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 길거리 소품
  */
 export class PropEntity {
     constructor(x, z, modelPath, scale = 1.0) {
         this.group = new THREE.Group();
         this.loader = new GLTFLoader();
-        this.boundingBox = new THREE.Box3(); 
-        
+        this.boundingBox = new THREE.Box3();
+
         this.loader.load(modelPath, (gltf) => {
             const model = gltf.scene;
             model.scale.set(scale, scale, scale);
@@ -184,7 +380,7 @@ export class PropEntity {
                 }
             });
             this.group.add(model);
-            this.updateBoundingBox(); 
+            this.updateBoundingBox();
         }, undefined, (error) => {
             console.warn(`⚠️ 소품 모델 로드 실패 (${modelPath}):`, error);
         });
@@ -204,12 +400,12 @@ export class BuildingEntity {
     constructor(x, z, config = {}) {
         const { w = 6 + Math.random() * 6, h = 20 + Math.random() * 40, d = 6 + Math.random() * 6 } = config;
         this.group = new THREE.Group();
-        
+
         const colors = CONFIG.COLORS.BUILDING;
         const color = colors[Math.floor(Math.random() * colors.length)];
-        
+
         const building = new THREE.Mesh(
-            new THREE.BoxGeometry(w, h, d), 
+            new THREE.BoxGeometry(w, h, d),
             new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 })
         );
         building.position.y = h / 2;
@@ -225,14 +421,10 @@ export class BuildingEntity {
     addSign(w, h, d) {
         const isActimedi = Math.random() > 0.5;
         const signTex = isActimedi ? BuildingEntity.actimediTex : BuildingEntity.fitpetTex;
-        const signGeo = new THREE.BoxGeometry(w * 0.9, 4, 1.2); 
-        const signMat = new THREE.MeshStandardMaterial({ 
-            map: signTex, 
-            roughness: 0.2,
-            metalness: 0.5
-        });
+        const signGeo = new THREE.BoxGeometry(w * 0.9, 4, 1.2);
+        const signMat = new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.2, metalness: 0.5 });
         const sign = new THREE.Mesh(signGeo, signMat);
-        sign.position.set(0, h - 5, d / 2 + 0.61); 
+        sign.position.set(0, h - 5, d / 2 + 0.61);
         this.group.add(sign);
     }
 
@@ -259,13 +451,13 @@ BuildingEntity.createLogoTexture = function(text, bgColor, textColor) {
     const canvas = document.createElement('canvas');
     canvas.width = 1024; canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bgColor; 
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, 1024, 256);
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 20;
     ctx.strokeRect(10, 10, 1004, 236);
-    ctx.fillStyle = '#000000'; 
-    ctx.font = 'bold 165px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif'; 
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 165px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(text, 512, 135);
     const tex = new THREE.CanvasTexture(canvas);
@@ -279,27 +471,50 @@ BuildingEntity.fitpetTex = BuildingEntity.createLogoTexture('핏펫', '#00aaff',
 export class StationEntity {
     constructor(x, z) {
         this.group = new THREE.Group();
-        this.boundingBox = new THREE.Box3(); 
+        this.boundingBox = new THREE.Box3();
 
-        const platform = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 12), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.STATION_PLATFORM }));
-        platform.position.y = 0.2; platform.receiveShadow = true; this.group.add(platform);
+        const platform = new THREE.Mesh(
+            new THREE.BoxGeometry(20, 0.4, 12),
+            new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.STATION_PLATFORM })
+        );
+        platform.position.y = 0.2;
+        platform.receiveShadow = true;
+        this.group.add(platform);
 
         for (let i = -1; i <= 1; i++) {
-            const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 5), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 }));
-            pillar.position.set(i * 8, 2.5, -4.5); pillar.castShadow = true; this.group.add(pillar);
+            const pillar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.2, 5),
+                new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 })
+            );
+            pillar.position.set(i * 8, 2.5, -4.5);
+            pillar.castShadow = true;
+            this.group.add(pillar);
         }
 
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 10), new THREE.MeshStandardMaterial({ color: 0x2c3e50, transparent: true, opacity: 0.8 }));
-        roof.position.set(0, 5, -2.5); roof.rotation.x = Math.PI / 15; this.group.add(roof);
+        const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(22, 0.3, 10),
+            new THREE.MeshStandardMaterial({ color: 0x2c3e50, transparent: true, opacity: 0.8 })
+        );
+        roof.position.set(0, 5, -2.5);
+        roof.rotation.x = Math.PI / 15;
+        this.group.add(roof);
 
-        const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128;
-        const ctx = canvas.getContext('2d'); 
-        ctx.fillStyle = CONFIG.COLORS.STATION; ctx.fillRect(0, 0, 512, 128);
-        ctx.fillStyle = 'white'; ctx.font = 'bold 80px sans-serif'; ctx.textAlign = 'center';
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#' + CONFIG.COLORS.STATION.toString(16).padStart(6, '0');
+        ctx.fillRect(0, 0, 512, 128);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 80px sans-serif';
+        ctx.textAlign = 'center';
         ctx.fillText('독산 DOKSAN', 256, 90);
-        
-        const sign = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 0.3), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas) }));
-        sign.position.set(0, 6.2, -2.5); this.group.add(sign);
+
+        const sign = new THREE.Mesh(
+            new THREE.BoxGeometry(8, 2, 0.3),
+            new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas) })
+        );
+        sign.position.set(0, 6.2, -2.5);
+        this.group.add(sign);
         this.group.position.set(x, 0, z);
 
         this.updateBoundingBox();
@@ -310,19 +525,6 @@ export class StationEntity {
         this.boundingBox.setFromObject(this.group);
     }
 
-    addTo(scene) { scene.add(this.group); }
-}
-
-export class TreeEntity {
-    constructor(x, z) {
-        this.group = new THREE.Group();
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.5), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_TRUNK }));
-        const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.5, 8), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_LEAVES }));
-        trunk.position.y = 0.75; leaves.position.y = 2.5;
-        trunk.castShadow = true; leaves.castShadow = true;
-        this.group.add(trunk); this.group.add(leaves);
-        this.group.position.set(x, 0, z);
-    }
     addTo(scene) { scene.add(this.group); }
 }
 
@@ -348,7 +550,7 @@ export class InstancedStreetLightEntity {
         scene.add(this.bulbs);
 
         this.count = 0;
-        this.dummy = new THREE.Object3D(); 
+        this.dummy = new THREE.Object3D();
     }
 
     addInstance(x, z) {
@@ -390,27 +592,26 @@ export class CloudEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
-
 export class MemoryFragmentEntity {
     constructor(x, z, infoId) {
-        this.infoId = infoId; 
-        this.group = new THREE.Group(); 
-        
-        const material = new THREE.MeshStandardMaterial({ 
+        this.infoId = infoId;
+        this.group = new THREE.Group();
+
+        const material = new THREE.MeshStandardMaterial({
             color: 0x555555,
-            emissive: 0xffd700, 
+            emissive: 0xffd700,
             emissiveIntensity: 1.2,
             metalness: 0.2,
-            roughness: 0.5,
+            roughness: 0.5
         });
 
         const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
         this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = 2.5; 
+        this.mesh.position.y = 2.5;
         this.mesh.castShadow = true;
         this.group.add(this.mesh);
 
-        this.group.position.set(x, 0, z); 
+        this.group.position.set(x, 0, z);
 
         this.boundingBox = new THREE.Box3();
         this.updateBoundingBox();
@@ -418,7 +619,7 @@ export class MemoryFragmentEntity {
 
     update(delta) {
         this.mesh.rotation.y += delta * 0.5;
-        this.updateBoundingBox(); 
+        this.updateBoundingBox();
     }
 
     updateBoundingBox() {
@@ -426,7 +627,5 @@ export class MemoryFragmentEntity {
         this.boundingBox.setFromObject(this.group);
     }
 
-    addTo(scene) {
-        scene.add(this.group);
-    }
+    addTo(scene) { scene.add(this.group); }
 }

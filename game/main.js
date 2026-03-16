@@ -3,9 +3,10 @@
  * Coastal World 스타일의 고성능/고퀄리티 시스템입니다.
  */
 import { CONFIG } from './config.js';
-import { 
-    StationEntity, BuildingEntity, TreeEntity, 
-    CloudEntity, PlayerEntity, PropEntity, InstancedStreetLightEntity, MemoryFragmentEntity
+import {
+    StationEntity, BuildingEntity, TreeEntity, PalmTreeEntity,
+    CloudEntity, PlayerEntity, PropEntity, InstancedStreetLightEntity,
+    MemoryFragmentEntity, IslandEntity, BridgeEntity, FlowerEntity, BenchEntity
 } from './entities.js';
 import { InputManager } from './InputManager.js';
 import { CameraManager } from './CameraManager.js';
@@ -19,15 +20,17 @@ const statusDisplay = document.getElementById('status-log');
 
 // --- 1. Scene SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // 쨍한 하늘색 (Sky Blue)
-scene.fog = new THREE.FogExp2(0x87ceeb, 0.005); // 부드러운 대기 안개
+scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND);
+scene.fog = new THREE.FogExp2(CONFIG.SCENE.FOG_COLOR, CONFIG.SCENE.FOG_DENSITY);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; // Coastal World 스타일의 풍부한 색감
+// 그림자 맵 크기: 기기 성능에 따라 4096 또는 2048
+renderer.shadowMap.mapSize = renderer.capabilities.maxTextureSize >= 4096 ? 4096 : 2048;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
@@ -35,69 +38,151 @@ document.body.appendChild(renderer.domElement);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
-// ✨ 블룸 효과: 화사한 대낮 느낌을 위해 임계값 조정
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.3, // 너무 과하지 않게 줄임
-    0.4, 
-    0.9  // 밝은 부분만 살짝 번지게
+    0.3,
+    0.4,
+    0.9
 );
 composer.addPass(bloomPass);
 
 // --- 2. LIGHTS ---
-const ambient = new THREE.AmbientLight(0xffffff, 1.2); // 대폭 밝게 (전체적인 화사함)
+const ambient = new THREE.AmbientLight(CONFIG.LIGHTS.AMBIENT, CONFIG.LIGHTS.AMBIENT_INTENSITY);
 scene.add(ambient);
 
-const directional = new THREE.DirectionalLight(0xffffff, 2.5); // 강한 태양광
-directional.position.set(100, 200, 100);
+const directional = new THREE.DirectionalLight(CONFIG.LIGHTS.DIRECTIONAL, CONFIG.LIGHTS.DIRECTIONAL_INTENSITY);
+directional.position.set(150, 180, 80);
 directional.castShadow = true;
-// 그림자 품질 향상 (30년차 케로의 노하우)
-directional.shadow.mapSize.width = 2048;
-directional.shadow.mapSize.height = 2048;
-directional.shadow.camera.left = -100;
-directional.shadow.camera.right = 100;
-directional.shadow.camera.top = 100;
-directional.shadow.camera.bottom = -100;
+const shadowMapSize = renderer.capabilities.maxTextureSize >= 4096 ? 4096 : 2048;
+directional.shadow.mapSize.width = shadowMapSize;
+directional.shadow.mapSize.height = shadowMapSize;
+directional.shadow.camera.left = -150;
+directional.shadow.camera.right = 150;
+directional.shadow.camera.top = 150;
+directional.shadow.camera.bottom = -150;
 scene.add(directional);
 
-const followLight = new THREE.PointLight(0xffffff, 20.0, 30); // 캐릭터 강조
+const followLight = new THREE.PointLight(0xffffff, 20.0, 30);
 scene.add(followLight);
 
 // --- 3. OBJECTS ---
 const entitiesToUpdate = [];
-const collidableEntities = []; 
-const islands = []; // 섬 목록 (낙하 체크용)
+const collidableEntities = [];
+const islands = []; // 낙하 체크용
 
-// 🌊 바다 (Sea Plane) - 더 투명하고 밝게
+// 🌊 바다
 const sea = new THREE.Mesh(
-    new THREE.PlaneGeometry(5000, 5000), 
-    new THREE.MeshStandardMaterial({ 
-        color: 0x00aaff, 
-        transparent: true, 
-        opacity: 0.7,
+    new THREE.PlaneGeometry(5000, 5000, 64, 64),
+    new THREE.MeshStandardMaterial({
+        color: CONFIG.COLORS.SEA_SURFACE,
+        transparent: true,
+        opacity: 0.82,
         roughness: 0.05,
         metalness: 0.2
     })
 );
 sea.rotation.x = -Math.PI / 2;
-sea.position.y = -10; // 섬보다 아래에 배치
+sea.position.y = -10;
 scene.add(sea);
 
-import { IslandEntity } from './entities.js';
+// --- 5개 섬 배치 ---
+const homeIsland = new IslandEntity(0, 0, 50, CONFIG.COLORS.ISLAND_HOME);
+homeIsland.addTo(scene);
+islands.push(homeIsland);
 
-// 첫 번째 섬 (시작점) - 크기 확대 및 초록색 적용
-const startIsland = new IslandEntity(0, 0, 50, 0x7ba65d);
-startIsland.addTo(scene);
-islands.push(startIsland);
+const meetingIsland = new IslandEntity(220, 60, 65, CONFIG.COLORS.ISLAND_MEETING);
+meetingIsland.addTo(scene);
+islands.push(meetingIsland);
 
-// 두 번째 섬 (기억의 조각 1) - 훨씬 크게 제작
-const memoryIsland1 = new IslandEntity(180, 0, 80, 0x6b9452);
-memoryIsland1.addTo(scene);
-islands.push(memoryIsland1);
+const stationIsland = new IslandEntity(420, -40, 80, CONFIG.COLORS.ISLAND_STATION);
+stationIsland.addTo(scene);
+islands.push(stationIsland);
+
+const proposalIsland = new IslandEntity(620, 80, 55, CONFIG.COLORS.ISLAND_PROPOSAL);
+proposalIsland.addTo(scene);
+islands.push(proposalIsland);
+
+const weddingIsland = new IslandEntity(840, 0, 100, CONFIG.COLORS.ISLAND_WEDDING);
+weddingIsland.addTo(scene);
+islands.push(weddingIsland);
+
+// --- 다리 4개 ---
+function islandPos(island) {
+    return new THREE.Vector3(
+        island.group.position.x,
+        0,
+        island.group.position.z
+    );
+}
+
+const bridge1 = new BridgeEntity(islandPos(homeIsland), islandPos(meetingIsland), homeIsland.sandRadius, meetingIsland.sandRadius);
+bridge1.addTo(scene);
+bridge1.getWalkableZones().forEach(zone => islands.push(zone));
+
+const bridge2 = new BridgeEntity(islandPos(meetingIsland), islandPos(stationIsland), meetingIsland.sandRadius, stationIsland.sandRadius);
+bridge2.addTo(scene);
+bridge2.getWalkableZones().forEach(zone => islands.push(zone));
+
+const bridge3 = new BridgeEntity(islandPos(stationIsland), islandPos(proposalIsland), stationIsland.sandRadius, proposalIsland.sandRadius);
+bridge3.addTo(scene);
+bridge3.getWalkableZones().forEach(zone => islands.push(zone));
+
+const bridge4 = new BridgeEntity(islandPos(proposalIsland), islandPos(weddingIsland), proposalIsland.sandRadius, weddingIsland.sandRadius);
+bridge4.addTo(scene);
+bridge4.getWalkableZones().forEach(zone => islands.push(zone));
+
+// --- 시작 섬 장식 ---
+[[-15, -10], [10, -20], [-5, 20]].forEach(([dx, dz]) => {
+    new TreeEntity(dx, dz, CONFIG.COLORS.TREE_LEAVES_LUSH).addTo(scene);
+});
+new PalmTreeEntity(20, 15, CONFIG.COLORS.TREE_LEAVES_LUSH).addTo(scene);
+new BenchEntity(-10, 5, Math.PI / 4).addTo(scene);
+new CloudEntity(0, 30, 0).addTo(scene);
+
+// --- 첫 만남 섬 장식 ---
+new PalmTreeEntity(215, 45, CONFIG.COLORS.TREE_LEAVES_WARM).addTo(scene);
+new PalmTreeEntity(230, 75, CONFIG.COLORS.TREE_LEAVES_WARM).addTo(scene);
+new BenchEntity(218, 62, 0).addTo(scene);
+new FlowerEntity(212, 55, CONFIG.COLORS.FLOWER_PINK).addTo(scene);
+new FlowerEntity(225, 68, CONFIG.COLORS.FLOWER_PINK).addTo(scene);
+
+// --- 독산역 섬 장식 ---
+const doksanStation = new StationEntity(420, -60);
+doksanStation.addTo(scene);
+collidableEntities.push(doksanStation);
+new TreeEntity(400, -55, CONFIG.COLORS.TREE_LEAVES).addTo(scene);
+new TreeEntity(440, -25, CONFIG.COLORS.TREE_LEAVES).addTo(scene);
+
+// --- 프로포즈 섬 장식 ---
+[[-10, 0], [5, 15], [15, -10]].forEach(([dx, dz]) => {
+    new PalmTreeEntity(620 + dx, 80 + dz, CONFIG.COLORS.TREE_LEAVES_PINK).addTo(scene);
+});
+new BenchEntity(622, 82, Math.PI / 6).addTo(scene);
+[[-8, -5], [8, -8], [-5, 10], [10, 5]].forEach(([dx, dz], i) => {
+    const color = i % 2 === 0 ? CONFIG.COLORS.FLOWER_PINK : CONFIG.COLORS.FLOWER_WHITE;
+    new FlowerEntity(620 + dx, 80 + dz, color).addTo(scene);
+});
+
+// --- 결혼식 섬 장식 ---
+[[-20, -15], [20, -15], [-20, 15], [20, 15]].forEach(([dx, dz]) => {
+    new PalmTreeEntity(840 + dx, dz, CONFIG.COLORS.TREE_LEAVES_GOLD).addTo(scene);
+});
+new BenchEntity(830, -5, 0).addTo(scene);
+new BenchEntity(850, 5, Math.PI).addTo(scene);
+[[-10, -10], [10, -10], [-10, 10], [10, 10]].forEach(([dx, dz], i) => {
+    const color = i % 2 === 0 ? CONFIG.COLORS.FLOWER_GOLD : CONFIG.COLORS.FLOWER_WHITE;
+    new FlowerEntity(840 + dx, dz, color).addTo(scene);
+});
+
+// 기억의 조각 (첫 만남 섬)
+const memoryFragment1 = new MemoryFragmentEntity(220, 60, 'first_date');
+memoryFragment1.addTo(scene);
+entitiesToUpdate.push(memoryFragment1);
+collidableEntities.push(memoryFragment1);
 
 // 플레이어
 const player = new PlayerEntity();
-player.group.position.set(0, 0.6, 0); // 섬 중앙에서 시작
+player.group.position.set(0, 0.6, 0);
 player.addTo(scene);
 entitiesToUpdate.push(player);
 
@@ -105,63 +190,42 @@ entitiesToUpdate.push(player);
 const input = new InputManager();
 const cameraManager = new CameraManager(camera, player.group);
 
-// '기억의 조각'
-const memoryFragment1 = new MemoryFragmentEntity(180, 0, 'first_date');
-memoryFragment1.addTo(scene);
-entitiesToUpdate.push(memoryFragment1);
-collidableEntities.push(memoryFragment1); 
-
-// 배치 로직 (독산역 섬도 광활하게 변경)
-const stationIsland = new IslandEntity(400, 0, 100, 0x5a8247);
-stationIsland.addTo(scene);
-islands.push(stationIsland);
-
-const doksanStation = new StationEntity(400, -20);
-doksanStation.addTo(scene);
-collidableEntities.push(doksanStation);
-
 // --- 4. LOGIC & PHYSICS ---
 let lastTime = performance.now();
 let frames = 0;
 let fps = 0;
 let velocityY = 0;
-const clock = new THREE.Clock(); 
+const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta(); 
+    const delta = clock.getDelta();
     const now = performance.now();
     frames++;
-    if (now >= lastTime + 1000) { fps = Math.round((frames * 1000) / (now - lastTime)); lastTime = now; frames = 0; statusDisplay.innerText = `FPS: ${fps}`; }
+    if (now >= lastTime + 1000) {
+        fps = Math.round((frames * 1000) / (now - lastTime));
+        lastTime = now;
+        frames = 0;
+        statusDisplay.innerText = `FPS: ${fps}`;
+    }
 
-    // 모든 엔티티 상태 업데이트 (BoundingBox 포함)
     for (const entity of entitiesToUpdate) { entity.update(delta); }
 
-    const { MOVE_SPEED, GRAVITY, JUMP_POWER, ROAD_LIMIT } = CONFIG.PHYSICS;
-    
-    // 통합 입력 데이터 획득 (WASD + Click-to-Move 통합)
+    const { MOVE_SPEED, GRAVITY, JUMP_POWER } = CONFIG.PHYSICS;
+
     const inputData = input.update();
-    
-    // --- Coastal World 스타일 카메라 기반 이동 로직 ---
+
     if (inputData.x !== 0 || inputData.z !== 0) {
-        // 1. 카메라의 현재 수평 회전 각도(Y축 회전) 추출
-        // 30년차 케로의 팁: 카메라의 Quaternion에서 직접 각도를 뽑아내는 것이 가장 정확합니다.
         const cameraRotation = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
         const angle = cameraRotation.y;
 
-        // 2. 입력 벡터를 카메라 각도에 맞춰 회전 (표준 회전 행렬 적용)
-        // 화면 위쪽 클릭(z=-1) 시 카메라가 보는 정면으로 이동하게 함
         const rotatedX = inputData.x * Math.cos(angle) + inputData.z * Math.sin(angle);
         const rotatedZ = -inputData.x * Math.sin(angle) + inputData.z * Math.cos(angle);
 
-        // 3. 플레이어 가속 적용
         player.applyInput(rotatedX, rotatedZ);
 
-        // 4. 캐릭터 회전 (진행 방향으로 부드럽게)
         const targetRotation = Math.atan2(rotatedX, rotatedZ);
-        
-        // 회전 값이 튀지 않도록 lerpAngle 로직 적용 (360도 회전 방지)
         const currentRot = player.group.rotation.y;
         let diff = targetRotation - currentRot;
         while (diff < -Math.PI) diff += Math.PI * 2;
@@ -173,7 +237,7 @@ function animate() {
         player.setState('idle');
     }
 
-    // --- 관성 이동 및 충돌 판정 ---
+    // 관성 이동 및 충돌 판정
     if (player.velocity.length() > 0.001) {
         const moveVector = player.velocity.clone();
         const nextPos = player.group.position.clone().add(moveVector);
@@ -190,22 +254,23 @@ function animate() {
                 }
             }
         }
-        
+
         if (canMove) {
             player.group.position.copy(nextPos);
         } else {
-            player.velocity.set(0, 0, 0); 
+            player.velocity.set(0, 0, 0);
         }
     }
 
-    // --- 지면 감지 및 낙하 로직 ---
+    // 지면 감지 및 낙하 로직
     let isOnGround = false;
     for (const island of islands) {
+        const checkRadius = island.sandRadius || island.radius;
         const dist = Math.hypot(
-            player.group.position.x - island.group.position.x, 
+            player.group.position.x - island.group.position.x,
             player.group.position.z - island.group.position.z
         );
-        if (dist < island.radius && player.group.position.y >= CONFIG.PLAYER.START_Y - 0.1) {
+        if (dist < checkRadius && player.group.position.y >= CONFIG.PLAYER.START_Y - 0.1) {
             isOnGround = true;
             break;
         }
@@ -214,7 +279,7 @@ function animate() {
     if (inputData.jump && isOnGround && player.group.position.y <= CONFIG.PLAYER.START_Y + 0.01) {
         velocityY = JUMP_POWER;
     }
-    
+
     velocityY += GRAVITY;
     player.group.position.y += velocityY;
 
@@ -229,8 +294,32 @@ function animate() {
         velocityY = 0;
     }
 
-    // --- 시스템 매니저 업데이트 ---
-    cameraManager.update(player.velocity); // 카메라에 플레이어 속도 전달 (Smart Follow)
+    // 바다 웨이브 애니메이션 (매 2프레임)
+    if (frames % 2 === 0) {
+        const seaPositions = sea.geometry.attributes.position;
+        const time = clock.elapsedTime;
+        for (let i = 0; i < seaPositions.count; i++) {
+            const x = seaPositions.getX(i);
+            const z = seaPositions.getZ(i);
+            seaPositions.setY(i,
+                Math.sin(x * 0.05 + time * 0.8) * 0.4 +
+                Math.sin(z * 0.07 + time * 1.1) * 0.3
+            );
+        }
+        seaPositions.needsUpdate = true;
+        sea.geometry.computeVertexNormals();
+    }
+
+    // 방향광을 플레이어 추적 (넓은 월드에서도 그림자 유지)
+    directional.position.set(
+        player.group.position.x + 100,
+        200,
+        player.group.position.z + 100
+    );
+    directional.target.position.copy(player.group.position);
+    directional.target.updateMatrixWorld();
+
+    cameraManager.update(player.velocity);
     followLight.position.set(player.group.position.x, 5, player.group.position.z);
 
     composer.render();
