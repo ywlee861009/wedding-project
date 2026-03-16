@@ -1,0 +1,152 @@
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #1a1a2e;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#application-canvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+}
+
+#status-log {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(0,0,0,0.45);
+    padding: 6px 14px;
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 100;
+    letter-spacing: 0.05em;
+}
+
+/* ── 대화 박스 ── */
+#dialogue-box {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(680px, 90vw);
+    background: rgba(255,248,252,0.96);
+    border: 2.5px solid #e07fa8;
+    border-radius: 16px;
+    padding: 20px 24px 16px;
+    box-shadow: 0 8px 32px rgba(180,60,100,0.18);
+    z-index: 200;
+    pointer-events: auto;
+    user-select: none;
+}
+
+#dialogue-speaker {
+    font-size: 15px;
+    font-weight: 700;
+    color: #c0366a;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+}
+
+#dialogue-text {
+    font-size: 16px;
+    color: #3a2030;
+    line-height: 1.65;
+    min-height: 50px;
+}
+
+#dialogue-hint {
+    font-size: 12px;
+    color: #b07090;
+    text-align: right;
+    margin-top: 10px;
+}
+
+/* ── 상호작용 버튼 ── */
+#interact-btn {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #f06090, #e040a0);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 16px rgba(200,60,120,0.35);
+    z-index: 210;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── 조이스틱 ── */
+#joystick-base {
+    display: none;
+    position: fixed;
+    width: 100px;
+    height: 100px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    z-index: 200;
+}
+
+#joystick-knob {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    left: 50%;
+    top: 50%;
+    margin-left: -20px;
+    margin-top: -20px;
+    transition: transform 0.05s;
+}
+
+/* ── 점프 버튼 ── */
+#btn-jump {
+    display: none;
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,170,255,0.4);
+    color: #fff;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    backdrop-filter: blur(5px);
+    z-index: 200;
+    -webkit-tap-highlight-color: transparent;
+}
+#btn-jump:active {
+    background: rgba(0,170,255,0.7);
+    transform: scale(0.9);
+}
+
+/* 모바일에서만 조이스틱/점프 버튼 표시 */
+@media (max-width: 900px) {
+    #btn-jump {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
