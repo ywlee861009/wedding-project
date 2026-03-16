@@ -3,9 +3,10 @@
 본 프로젝트는 하객들이 정보를 쉽게 확인하고 소통할 수 있도록 **심플하고 직관적인 싱글 페이지(Single Page Scroll)** 또는 **탭 기반 네비게이션**을 지향합니다.
 
 ## 1. 네비게이션 원칙 (Navigation Principles)
-- **User-Centric**: 가장 중요한 정보(일시, 장소)를 최상단에 배치.
-- **Visual Journey**: 스크롤을 따라 신랑 신부의 이야기와 사진이 자연스럽게 이어지도록 설계.
-- **Action-Oriented**: RSVP 및 축의금 전달 버튼 등은 눈에 띄게 배치.
+- **Coastal Interaction**: [Coastal World](https://coastalworld.com/)와 같은 직관적이고 부드러운 3D 탐험 경험 제공.
+- **User-Centric**: 가장 중요한 정보(일시, 장소)를 탐험 과정 중 자연스럽게 노출.
+- **Visual Journey**: 스크롤 및 이동에 따라 신랑 신부의 이야기와 사진이 유기적으로 연결.
+- **Action-Oriented**: RSVP 및 축의금 전달 버튼 등은 탐험 UI 내에 명확히 배치.
 
 ## 2. 화면 구성 (Site Map)
 

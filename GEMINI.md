@@ -12,8 +12,14 @@
 - **Designer (Jenny)**: 시니어 프로덕트 디자이너. 우아하고 세련된 결혼식 분위기에 맞는 디자인 시스템 설계.
 
 ## 🎨 2. 프로젝트 정체성 및 원칙 (Identity & Principles)
+- **핵심 레퍼런스**: [Coastal World](https://coastalworld.com/) (조작감, 색감, UI/UX 디자인의 벤치마크)
 - **컨셉**: Modern & Elegant Wedding + **High-Performance 3D Journey**.
-- **디자인 시스템**: Three.js를 활용한 **고품질/저부하(Low-Poly/Baked Texture) 3D 에셋**과 물리 기반 렌더링(PBR)을 활용한 우아한 연출.
+- **디자인 시스템**: 
+    - Coastal World와 유사한 **밝고 화사한 색감** 및 **Low-poly/Baked Texture** 3D 에셋 활용.
+    - 우아하면서도 접근성 높은 UI (둥근 버튼, 직관적인 아이콘).
+- **조작 및 인터랙션**: 
+    - Coastal World 수준의 부드러운 이동 및 카메라 워킹.
+    - 모바일 최적화된 "Tap-to-Move" 또는 가상 조이스틱 조작계 지향.
 - **성능 원칙 (Performance-First)**:
     - **[FPS Critical]** 모든 기기(WebView 포함)에서 상시 60FPS 유지를 목표로 함.
     - **[Asset Optimization]** GLB 모델의 폴리곤 수(Polycount)와 텍스처 해상도를 엄격히 관리하며, 드로우 콜 최소화를 위한 인스턴싱(Instancing) 및 병합(Merging) 기술 적용.

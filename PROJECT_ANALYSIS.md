@@ -5,6 +5,7 @@
 ## 1. 프로젝트 개요 (Project Overview)
 - **목표**: 3D 횡스크롤 게임 요소가 포함된 인터랙티브 모바일 청첩장 개발.
 - **핵심 컨셉**: 2018년 첫 만남(독산역)부터 현재까지의 여정을 3D 공간에서의 이동과 시간 변화로 시각화.
+- **주요 레퍼런스**: [Coastal World](https://coastalworld.com/) (전반적인 Look & Feel, 조작 시스템, 색감의 기준점).
 - **주요 기술**: Android (Native Wrapper) + Three.js (3D Web Engine).
 
 ## 2. 시스템 아키텍처 (Architecture)
