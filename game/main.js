@@ -1,326 +1,272 @@
 /**
- * 💍 Wedding Journey 2.0 - High Fidelity Engine
- * Coastal World 스타일의 고성능/고퀄리티 시스템입니다.
+ * 💍 Wedding Journey — 1/200 서울 맵
  */
 import { CONFIG } from './config.js';
 import {
-    StationEntity, BuildingEntity, TreeEntity, PalmTreeEntity,
-    CloudEntity, PlayerEntity, PropEntity, InstancedStreetLightEntity,
-    MemoryFragmentEntity, IslandEntity, BridgeEntity, FlowerEntity, BenchEntity
+    StationEntity, TreeEntity, PalmTreeEntity,
+    CloudEntity, PlayerEntity, AnimatedPropEntity, FlyingBirdEntity,
+    SeoulTerrain, FlowerEntity, BenchEntity
 } from './entities.js';
 import { InputManager } from './InputManager.js';
 import { CameraManager } from './CameraManager.js';
 
-// --- POST-PROCESSING ADDONS ---
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 const statusDisplay = document.getElementById('status-log');
 
-// --- 1. Scene SETUP ---
+// ── 1. SCENE ───────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND);
 scene.fog = new THREE.FogExp2(CONFIG.SCENE.FOG_COLOR, CONFIG.SCENE.FOG_DENSITY);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+// ── 2. RENDERER / CAMERA ──────────────────────────────
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 800);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // FPS 보호
 renderer.shadowMap.enabled = true;
-// 그림자 맵 크기: 기기 성능에 따라 4096 또는 2048
-renderer.shadowMap.mapSize = renderer.capabilities.maxTextureSize >= 4096 ? 4096 : 2048;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-// --- 1.1 POST-PROCESSING SETUP ---
+// ── 3. POST-PROCESSING ────────────────────────────────
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-
 const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.3,
-    0.4,
-    0.9
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.3, 0.4, 0.9
 );
 composer.addPass(bloomPass);
 
-// --- 2. LIGHTS ---
+// ── 4. LIGHTS ─────────────────────────────────────────
 const ambient = new THREE.AmbientLight(CONFIG.LIGHTS.AMBIENT, CONFIG.LIGHTS.AMBIENT_INTENSITY);
 scene.add(ambient);
 
 const directional = new THREE.DirectionalLight(CONFIG.LIGHTS.DIRECTIONAL, CONFIG.LIGHTS.DIRECTIONAL_INTENSITY);
-directional.position.set(150, 180, 80);
+directional.position.set(100, 180, 80);
 directional.castShadow = true;
-const shadowMapSize = renderer.capabilities.maxTextureSize >= 4096 ? 4096 : 2048;
-directional.shadow.mapSize.width = shadowMapSize;
-directional.shadow.mapSize.height = shadowMapSize;
-directional.shadow.camera.left = -150;
-directional.shadow.camera.right = 150;
-directional.shadow.camera.top = 150;
+directional.shadow.mapSize.width  = 2048;
+directional.shadow.mapSize.height = 2048;
+directional.shadow.camera.left   = -150;
+directional.shadow.camera.right  =  150;
+directional.shadow.camera.top    =  150;
 directional.shadow.camera.bottom = -150;
 scene.add(directional);
 
 const followLight = new THREE.PointLight(0xffffff, 20.0, 30);
 scene.add(followLight);
 
-// --- 3. OBJECTS ---
-const entitiesToUpdate = [];
-const collidableEntities = [];
-const islands = []; // 낙하 체크용
+// ── 5. SEOUL TERRAIN ──────────────────────────────────
+const seoulMap = new SeoulTerrain();
+seoulMap.addTo(scene);
 
-// 🌊 바다
-const sea = new THREE.Mesh(
-    new THREE.PlaneGeometry(5000, 5000, 64, 64),
-    new THREE.MeshStandardMaterial({
-        color: CONFIG.COLORS.SEA_SURFACE,
-        transparent: true,
-        opacity: 0.82,
-        roughness: 0.05,
-        metalness: 0.2
-    })
+// ── 6. 랜드마크 & 장식 ────────────────────────────────
+
+// 남산타워 (남산 정상 위)
+const nmH = seoulMap.getHeightAt(14, 2);
+const towerMat  = new THREE.MeshStandardMaterial({ color: 0xddddcc });
+const needleMat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+const towerBase = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 4, 8), towerMat);
+const towerNeedle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.3, 3, 8), needleMat);
+towerBase.position.set(14, nmH + 2, 2);
+towerNeedle.position.set(14, nmH + 5.5, 2);
+towerBase.castShadow = true;
+scene.add(towerBase);
+scene.add(towerNeedle);
+
+// 63빌딩 (여의도)
+const b63 = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 8, 2),
+    new THREE.MeshStandardMaterial({ color: 0xd4a820, metalness: 0.6, roughness: 0.2 })
 );
-sea.rotation.x = -Math.PI / 2;
-sea.position.y = -10;
-scene.add(sea);
+b63.position.set(-30, 4.5, 24);
+b63.castShadow = true;
+scene.add(b63);
 
-// --- 5개 섬 배치 ---
-const homeIsland = new IslandEntity(0, 0, 50, CONFIG.COLORS.ISLAND_HOME);
-homeIsland.addTo(scene);
-islands.push(homeIsland);
-
-const meetingIsland = new IslandEntity(220, 60, 65, CONFIG.COLORS.ISLAND_MEETING);
-meetingIsland.addTo(scene);
-islands.push(meetingIsland);
-
-const stationIsland = new IslandEntity(420, -40, 80, CONFIG.COLORS.ISLAND_STATION);
-stationIsland.addTo(scene);
-islands.push(stationIsland);
-
-const proposalIsland = new IslandEntity(620, 80, 55, CONFIG.COLORS.ISLAND_PROPOSAL);
-proposalIsland.addTo(scene);
-islands.push(proposalIsland);
-
-const weddingIsland = new IslandEntity(840, 0, 100, CONFIG.COLORS.ISLAND_WEDDING);
-weddingIsland.addTo(scene);
-islands.push(weddingIsland);
-
-// --- 다리 4개 ---
-function islandPos(island) {
-    return new THREE.Vector3(
-        island.group.position.x,
-        0,
-        island.group.position.z
-    );
+// 남산 주변 나무들
+for (const [tx, tz] of [[11,-4],[17,4],[10,6],[18,0],[14,-6]]) {
+    const th = seoulMap.getHeightAt(tx, tz);
+    const t  = new TreeEntity(tx, tz, CONFIG.COLORS.TREE_LEAVES_LUSH);
+    t.group.position.y = th;
+    t.addTo(scene);
 }
 
-const bridge1 = new BridgeEntity(islandPos(homeIsland), islandPos(meetingIsland), homeIsland.sandRadius, meetingIsland.sandRadius);
-bridge1.addTo(scene);
-bridge1.getWalkableZones().forEach(zone => islands.push(zone));
+// 북한산 나무들
+for (const [tx, tz] of [[-14,-60],[-10,-64],[-16,-65],[-8,-58]]) {
+    const th = seoulMap.getHeightAt(tx, tz);
+    const t  = new TreeEntity(tx, tz, CONFIG.COLORS.TREE_LEAVES_LUSH);
+    t.group.position.y = th;
+    t.addTo(scene);
+}
 
-const bridge2 = new BridgeEntity(islandPos(meetingIsland), islandPos(stationIsland), meetingIsland.sandRadius, stationIsland.sandRadius);
-bridge2.addTo(scene);
-bridge2.getWalkableZones().forEach(zone => islands.push(zone));
+// 구름
+new CloudEntity(-30, 45, -55).addTo(scene);
+new CloudEntity( 40, 40,  60).addTo(scene);
+new CloudEntity(-65, 42,  20).addTo(scene);
+new CloudEntity( 70, 38, -40).addTo(scene);
 
-const bridge3 = new BridgeEntity(islandPos(stationIsland), islandPos(proposalIsland), stationIsland.sandRadius, proposalIsland.sandRadius);
-bridge3.addTo(scene);
-bridge3.getWalkableZones().forEach(zone => islands.push(zone));
-
-const bridge4 = new BridgeEntity(islandPos(proposalIsland), islandPos(weddingIsland), proposalIsland.sandRadius, weddingIsland.sandRadius);
-bridge4.addTo(scene);
-bridge4.getWalkableZones().forEach(zone => islands.push(zone));
-
-// --- 시작 섬 장식 ---
-[[-15, -10], [10, -20], [-5, 20]].forEach(([dx, dz]) => {
-    new TreeEntity(dx, dz, CONFIG.COLORS.TREE_LEAVES_LUSH).addTo(scene);
-});
-new PalmTreeEntity(20, 15, CONFIG.COLORS.TREE_LEAVES_LUSH).addTo(scene);
-new BenchEntity(-10, 5, Math.PI / 4).addTo(scene);
-new CloudEntity(0, 30, 0).addTo(scene);
-
-// --- 첫 만남 섬 장식 ---
-new PalmTreeEntity(215, 45, CONFIG.COLORS.TREE_LEAVES_WARM).addTo(scene);
-new PalmTreeEntity(230, 75, CONFIG.COLORS.TREE_LEAVES_WARM).addTo(scene);
-new BenchEntity(218, 62, 0).addTo(scene);
-new FlowerEntity(212, 55, CONFIG.COLORS.FLOWER_PINK).addTo(scene);
-new FlowerEntity(225, 68, CONFIG.COLORS.FLOWER_PINK).addTo(scene);
-
-// --- 독산역 섬 장식 ---
-const doksanStation = new StationEntity(420, -60);
+// ── 7. 독산역 (SW 서울) ───────────────────────────────
+const stH = seoulMap.getHeightAt(-55, 52);
+const doksanStation = new StationEntity(-55, 52);
+doksanStation.group.position.y = stH;
 doksanStation.addTo(scene);
-collidableEntities.push(doksanStation);
-new TreeEntity(400, -55, CONFIG.COLORS.TREE_LEAVES).addTo(scene);
-new TreeEntity(440, -25, CONFIG.COLORS.TREE_LEAVES).addTo(scene);
 
-// --- 프로포즈 섬 장식 ---
-[[-10, 0], [5, 15], [15, -10]].forEach(([dx, dz]) => {
-    new PalmTreeEntity(620 + dx, 80 + dz, CONFIG.COLORS.TREE_LEAVES_PINK).addTo(scene);
-});
-new BenchEntity(622, 82, Math.PI / 6).addTo(scene);
-[[-8, -5], [8, -8], [-5, 10], [10, 5]].forEach(([dx, dz], i) => {
-    const color = i % 2 === 0 ? CONFIG.COLORS.FLOWER_PINK : CONFIG.COLORS.FLOWER_WHITE;
-    new FlowerEntity(620 + dx, 80 + dz, color).addTo(scene);
-});
+// ── 8. 캐릭터 배치 ────────────────────────────────────
+const entitiesToUpdate = [];
 
-// --- 결혼식 섬 장식 ---
-[[-20, -15], [20, -15], [-20, 15], [20, 15]].forEach(([dx, dz]) => {
-    new PalmTreeEntity(840 + dx, dz, CONFIG.COLORS.TREE_LEAVES_GOLD).addTo(scene);
-});
-new BenchEntity(830, -5, 0).addTo(scene);
-new BenchEntity(850, 5, Math.PI).addTo(scene);
-[[-10, -10], [10, -10], [-10, 10], [10, 10]].forEach(([dx, dz], i) => {
-    const color = i % 2 === 0 ? CONFIG.COLORS.FLOWER_GOLD : CONFIG.COLORS.FLOWER_WHITE;
-    new FlowerEntity(840 + dx, dz, color).addTo(scene);
-});
+// 신부 — 광화문 근처 (중심가)
+const brideH = seoulMap.getHeightAt(5, -8);
+const bride = new AnimatedPropEntity(5, -8, './assets/models/bride.glb', 1.5);
+bride.group.position.y = brideH;
+bride.group.rotation.y = Math.PI;
+bride.addTo(scene);
+entitiesToUpdate.push(bride);
 
-// 기억의 조각 (첫 만남 섬)
-const memoryFragment1 = new MemoryFragmentEntity(220, 60, 'first_date');
-memoryFragment1.addTo(scene);
-entitiesToUpdate.push(memoryFragment1);
-collidableEntities.push(memoryFragment1);
+// NPC — 독산역 앞
+const npcH = seoulMap.getHeightAt(-50, 50);
+const npc1 = new AnimatedPropEntity(-50, 50, './assets/models/npc.glb', 1.5);
+npc1.group.position.y = npcH;
+npc1.group.rotation.y = -Math.PI * 0.5;
+npc1.addTo(scene);
+entitiesToUpdate.push(npc1);
 
-// 플레이어
+// 오리들 (한강변)
+for (const [dx, dz] of [[-20,18],[5,30],[40,20],[60,28]]) {
+    const dkH = seoulMap.getHeightAt(dx, dz);
+    const dk  = new AnimatedPropEntity(dx, dz, './assets/models/duck.glb', 0.8);
+    dk.group.position.y = dkH;
+    dk.addTo(scene);
+    entitiesToUpdate.push(dk);
+}
+
+// ── 9. 새들 (하늘 비행) ───────────────────────────────
+
+// 한강 위 플라밍고 2마리
+const flamingo1 = new FlyingBirdEntity(-15, 24, './assets/models/flamingo.glb',
+    { orbitRadius: 18, height: 14, speed:  0.3, scale: 0.02 });
+flamingo1.addTo(scene); entitiesToUpdate.push(flamingo1);
+
+const flamingo2 = new FlyingBirdEntity( 35, 24, './assets/models/flamingo.glb',
+    { orbitRadius: 22, height: 18, speed: -0.25, scale: 0.02, startAngle: Math.PI });
+flamingo2.addTo(scene); entitiesToUpdate.push(flamingo2);
+
+// 남산 위 앵무새
+const parrot1 = new FlyingBirdEntity(14, 2, './assets/models/parrot.glb',
+    { orbitRadius: 16, height: nmH + 12, speed: 0.45, scale: 0.018 });
+parrot1.addTo(scene); entitiesToUpdate.push(parrot1);
+
+// 북한산 위 플라밍고
+const flamingo3 = new FlyingBirdEntity(-12, -62, './assets/models/flamingo.glb',
+    { orbitRadius: 22, height: 28, speed: 0.35, scale: 0.02, startAngle: Math.PI * 0.5 });
+flamingo3.addTo(scene); entitiesToUpdate.push(flamingo3);
+
+// 관악산 위 앵무새
+const parrot2 = new FlyingBirdEntity(8, 65, './assets/models/parrot.glb',
+    { orbitRadius: 20, height: 24, speed: -0.4, scale: 0.018, startAngle: Math.PI });
+parrot2.addTo(scene); entitiesToUpdate.push(parrot2);
+
+// ── 10. 플레이어 ──────────────────────────────────────
+// 시작 위치: 경복궁 근처 (광화문 북쪽)
+const startX = -5, startZ = -35;
+const startH = seoulMap.getHeightAt(startX, startZ);
 const player = new PlayerEntity();
-player.group.position.set(0, 0.6, 0);
+player.group.position.set(startX, startH + CONFIG.PLAYER.START_Y, startZ);
 player.addTo(scene);
 entitiesToUpdate.push(player);
 
-// 시스템 매니저 초기화
 const input = new InputManager();
 const cameraManager = new CameraManager(camera, player.group);
 
-// --- 4. LOGIC & PHYSICS ---
-let lastTime = performance.now();
-let frames = 0;
-let fps = 0;
-let velocityY = 0;
-const clock = new THREE.Clock();
+// ── 11. PHYSICS CONSTANTS ─────────────────────────────
+const BOUND_X = 100; // 서울 타원형 경계 반축
+const BOUND_Z = 80;
 
+let lastTime  = performance.now();
+let frames    = 0;
+let fps       = 0;
+let velocityY = 0;
+const clock   = new THREE.Clock();
+
+// ── 12. ANIMATE LOOP ──────────────────────────────────
 function animate() {
     requestAnimationFrame(animate);
 
     const delta = clock.getDelta();
-    const now = performance.now();
+    const now   = performance.now();
     frames++;
     if (now >= lastTime + 1000) {
         fps = Math.round((frames * 1000) / (now - lastTime));
-        lastTime = now;
-        frames = 0;
+        lastTime = now; frames = 0;
         statusDisplay.innerText = `FPS: ${fps}`;
     }
 
-    for (const entity of entitiesToUpdate) { entity.update(delta); }
+    // 엔티티 업데이트
+    for (const e of entitiesToUpdate) e.update(delta);
 
-    const { MOVE_SPEED, GRAVITY, JUMP_POWER } = CONFIG.PHYSICS;
-
+    const { GRAVITY, JUMP_POWER } = CONFIG.PHYSICS;
     const inputData = input.update();
 
+    // 입력 → 이동
     if (inputData.x !== 0 || inputData.z !== 0) {
-        const cameraRotation = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-        const angle = cameraRotation.y;
+        const cameraRot = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+        const angle     = cameraRot.y;
+        const rotX = inputData.x * Math.cos(angle) + inputData.z * Math.sin(angle);
+        const rotZ = -inputData.x * Math.sin(angle) + inputData.z * Math.cos(angle);
+        player.applyInput(rotX, rotZ);
 
-        const rotatedX = inputData.x * Math.cos(angle) + inputData.z * Math.sin(angle);
-        const rotatedZ = -inputData.x * Math.sin(angle) + inputData.z * Math.cos(angle);
-
-        player.applyInput(rotatedX, rotatedZ);
-
-        const targetRotation = Math.atan2(rotatedX, rotatedZ);
-        const currentRot = player.group.rotation.y;
-        let diff = targetRotation - currentRot;
+        const targetRot = Math.atan2(rotX, rotZ);
+        const curRot    = player.group.rotation.y;
+        let diff = targetRot - curRot;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        player.group.rotation.y = currentRot + diff * 0.15;
-
+        while (diff >  Math.PI) diff -= Math.PI * 2;
+        player.group.rotation.y = curRot + diff * 0.15;
         player.setState('walk');
     } else {
         player.setState('idle');
     }
 
-    // 관성 이동 및 충돌 판정
+    // 수평 이동 + 서울 경계 체크
     if (player.velocity.length() > 0.001) {
-        const moveVector = player.velocity.clone();
-        const nextPos = player.group.position.clone().add(moveVector);
-        const playerCurrentBox = player.boundingBox;
-        const playerNextBox = new THREE.Box3().copy(playerCurrentBox).translate(moveVector);
-        let canMove = true;
-
-        for (const collidable of collidableEntities) {
-            if (!collidable.boundingBox.isEmpty() && !playerCurrentBox.isEmpty()) {
-                if (playerNextBox.intersectsBox(collidable.boundingBox)) {
-                    if (playerCurrentBox.intersectsBox(collidable.boundingBox)) continue;
-                    canMove = false;
-                    break;
-                }
-            }
-        }
-
-        if (canMove) {
-            player.group.position.copy(nextPos);
+        const next = player.group.position.clone().add(player.velocity);
+        const bx   = next.x / (BOUND_X + 1);
+        const bz   = next.z / (BOUND_Z + 1);
+        if (bx * bx + bz * bz < 1) {
+            player.group.position.x = next.x;
+            player.group.position.z = next.z;
         } else {
+            // 경계 충돌 → 속도 제거
             player.velocity.set(0, 0, 0);
         }
     }
 
-    // 지면 감지 및 낙하 로직
-    let isOnGround = false;
-    for (const island of islands) {
-        const checkRadius = island.sandRadius || island.radius;
-        const dist = Math.hypot(
-            player.group.position.x - island.group.position.x,
-            player.group.position.z - island.group.position.z
-        );
-        if (dist < checkRadius && player.group.position.y >= CONFIG.PLAYER.START_Y - 0.1) {
-            isOnGround = true;
-            break;
-        }
-    }
+    // 지형 높이 추적 + 중력
+    const px = player.group.position.x;
+    const pz = player.group.position.z;
+    const terrainH = seoulMap.getHeightAt(px, pz);
+    const groundY  = terrainH + CONFIG.PLAYER.START_Y;
 
-    if (inputData.jump && isOnGround && player.group.position.y <= CONFIG.PLAYER.START_Y + 0.01) {
+    const isOnGround = player.group.position.y <= groundY + 0.05;
+
+    if (inputData.jump && isOnGround) {
         velocityY = JUMP_POWER;
     }
 
     velocityY += GRAVITY;
     player.group.position.y += velocityY;
 
-    if (isOnGround && player.group.position.y < CONFIG.PLAYER.START_Y) {
-        player.group.position.y = CONFIG.PLAYER.START_Y;
+    if (player.group.position.y <= groundY) {
+        player.group.position.y = groundY;
         velocityY = 0;
     }
 
-    if (player.group.position.y < -30) {
-        player.group.position.set(0, 5, 0);
-        player.velocity.set(0, 0, 0);
-        velocityY = 0;
-    }
-
-    // 바다 웨이브 애니메이션 (매 2프레임)
-    if (frames % 2 === 0) {
-        const seaPositions = sea.geometry.attributes.position;
-        const time = clock.elapsedTime;
-        for (let i = 0; i < seaPositions.count; i++) {
-            const x = seaPositions.getX(i);
-            const z = seaPositions.getZ(i);
-            seaPositions.setY(i,
-                Math.sin(x * 0.05 + time * 0.8) * 0.4 +
-                Math.sin(z * 0.07 + time * 1.1) * 0.3
-            );
-        }
-        seaPositions.needsUpdate = true;
-        sea.geometry.computeVertexNormals();
-    }
-
-    // 방향광을 플레이어 추적 (넓은 월드에서도 그림자 유지)
-    directional.position.set(
-        player.group.position.x + 100,
-        200,
-        player.group.position.z + 100
-    );
+    // 방향광 플레이어 추적 (그림자 품질 유지)
+    directional.position.set(px + 100, 200, pz + 100);
     directional.target.position.copy(player.group.position);
     directional.target.updateMatrixWorld();
 
+    followLight.position.set(px, player.group.position.y + 5, pz);
     cameraManager.update(player.velocity);
-    followLight.position.set(player.group.position.x, 5, player.group.position.z);
 
     composer.render();
 }
@@ -333,5 +279,5 @@ window.addEventListener('resize', () => {
     bloomPass.resolution.set(window.innerWidth, window.innerHeight);
 });
 
-statusDisplay.innerText = "🚀 Wedding V2 Engine: 가동 중";
+statusDisplay.innerText = '🗺️ Seoul Map 1/200 : 가동 중';
 animate();

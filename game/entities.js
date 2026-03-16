@@ -33,6 +33,7 @@ export class PlayerEntity {
         this.loader.load(CONFIG.PLAYER.MODEL_PATH, (gltf) => {
             this.model = gltf.scene;
             this.model.scale.set(1.5, 1.5, 1.5);
+            this.model.rotation.y = Math.PI; // 모델 정면 방향 보정
             this.model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -247,6 +248,73 @@ export class BridgeEntity {
 }
 
 /**
+ * 🐦 하늘을 나는 새 엔티티
+ * - 섬 중심을 기준으로 원형 비행
+ * - 상하 보빙(bobbing) + 진행 방향으로 자동 회전
+ */
+export class FlyingBirdEntity {
+    constructor(centerX, centerZ, modelPath, options = {}) {
+        this.group = new THREE.Group();
+        this.mixer = null;
+
+        this.centerX = centerX;
+        this.centerZ = centerZ;
+        this.orbitRadius = options.orbitRadius || 25;
+        this.height     = options.height      || 20;
+        this.speed      = options.speed       || 0.4; // rad/s
+        this.angle      = options.startAngle  || (Math.random() * Math.PI * 2);
+
+        const scale = options.scale || 0.02;
+        const loader = new GLTFLoader();
+
+        loader.load(modelPath, (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(scale, scale, scale);
+            model.traverse((child) => {
+                if (child.isMesh) child.castShadow = true;
+            });
+            this.group.add(model);
+
+            if (gltf.animations.length > 0) {
+                this.mixer = new THREE.AnimationMixer(model);
+                this.mixer.clipAction(gltf.animations[0]).play();
+            }
+        }, undefined, (err) => {
+            console.warn(`FlyingBirdEntity load failed (${modelPath})`, err);
+        });
+
+        // 초기 위치
+        this._updatePosition();
+    }
+
+    _updatePosition() {
+        const x = this.centerX + Math.cos(this.angle) * this.orbitRadius;
+        const z = this.centerZ + Math.sin(this.angle) * this.orbitRadius;
+        const y = this.height  + Math.sin(this.angle * 3) * 2.5; // 상하 보빙
+        this.group.position.set(x, y, z);
+    }
+
+    update(delta) {
+        if (this.mixer) this.mixer.update(delta);
+
+        const prevX = this.group.position.x;
+        const prevZ = this.group.position.z;
+
+        this.angle += this.speed * delta;
+        this._updatePosition();
+
+        // 진행 방향으로 부드럽게 회전
+        const dx = this.group.position.x - prevX;
+        const dz = this.group.position.z - prevZ;
+        if (Math.abs(dx) > 0.0001 || Math.abs(dz) > 0.0001) {
+            this.group.rotation.y = Math.atan2(dx, dz);
+        }
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
  * 🌸 꽃 엔티티
  */
 export class FlowerEntity {
@@ -358,6 +426,44 @@ export class TreeEntity {
         this.group.add(leaves);
         this.group.position.set(x, 0, z);
     }
+    addTo(scene) { scene.add(this.group); }
+}
+
+/**
+ * 🐦 애니메이션 소품 (새, 신부 등 첫 번째 애니메이션 자동 재생)
+ */
+export class AnimatedPropEntity {
+    constructor(x, z, modelPath, scale = 1.0) {
+        this.group = new THREE.Group();
+        this.mixer = null;
+        const loader = new GLTFLoader();
+
+        loader.load(modelPath, (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(scale, scale, scale);
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            this.group.add(model);
+
+            if (gltf.animations.length > 0) {
+                this.mixer = new THREE.AnimationMixer(model);
+                this.mixer.clipAction(gltf.animations[0]).play();
+            }
+        }, undefined, (err) => {
+            console.warn(`AnimatedPropEntity load failed (${modelPath})`, err);
+        });
+
+        this.group.position.set(x, 0, z);
+    }
+
+    update(delta) {
+        if (this.mixer) this.mixer.update(delta);
+    }
+
     addTo(scene) { scene.add(this.group); }
 }
 
@@ -625,6 +731,145 @@ export class MemoryFragmentEntity {
     updateBoundingBox() {
         this.group.updateWorldMatrix(true, true);
         this.boundingBox.setFromObject(this.group);
+    }
+
+    addTo(scene) { scene.add(this.group); }
+}
+
+// ─────────────────────────────────────────────────────────
+/**
+ * 🗺️ 1/200 서울 지형
+ *
+ * 좌표계: x = 서→동,  z = 북→남
+ * 범위:   x[-100, 100]  z[-80, 80]  (서울 타원형 경계)
+ * 스케일: 1 game unit ≈ 200m
+ */
+export class SeoulTerrain {
+    constructor() {
+        this.group = new THREE.Group();
+
+        // [cx, cz, 최고높이, 확산σ]
+        this._peaks = [
+            [-12, -62, 14, 20],   // 북한산  836m
+            [ 22, -65, 12, 16],   // 도봉산  739m
+            [ 60, -52, 10, 14],   // 수락산  638m
+            [ 82,  -8,  6, 12],   // 아차산  295m
+            [ 14,   2,  9, 10],   // 남산    262m
+            [-58, -12,  6, 10],   // 안산    296m
+            [-18, -18,  7,  9],   // 인왕산  338m
+            [ -5, -25,  8,  9],   // 북악산  342m
+            [  8,  65, 13, 16],   // 관악산  629m
+            [ 62,  62, 10, 13],   // 청계산  618m
+            [ 65, -28,  7, 11],   // 용마산  348m
+        ];
+
+        this._riverZ  = 24;   // 한강 중심 z
+        this._riverHW = 9;    // 한강 반폭
+
+        // 교량 x 위치 (서→동)
+        this._bridgeXs = [-88, -45, -32, -18, -3, 10, 24, 40, 55, 70];
+
+        this._buildTerrain();
+        this._buildRiver();
+        this._buildBridges();
+    }
+
+    /** 게임 좌표 (x, z)의 지형 높이 반환 */
+    getHeightAt(x, z) {
+        let h = 0;
+        for (const [cx, cz, ph, sigma] of this._peaks) {
+            const d2 = (x - cx) ** 2 + (z - cz) ** 2;
+            h += ph * Math.exp(-d2 / (2 * sigma * sigma));
+        }
+        // 한강 구간 평탄화
+        const dr = Math.abs(z - this._riverZ);
+        if (dr < this._riverHW + 6) {
+            const blend = Math.max(0, 1 - dr / (this._riverHW + 6));
+            h *= (1 - blend * 0.96);
+        }
+        return Math.max(0, h);
+    }
+
+    /** 서울 경계 안인지 (타원형) */
+    isInSeoul(x, z) {
+        return (x / 100) ** 2 + (z / 80) ** 2 < 1;
+    }
+
+    _vertexColor(x, z, h) {
+        if (!this.isInSeoul(x, z)) return new THREE.Color(0x5a8a3a); // 서울 외 초록
+        if (h > 8)   return new THREE.Color(0x2d6e2d); // 산 정상
+        if (h > 4)   return new THREE.Color(0x4a8a4a); // 산 중턱
+        if (h > 1.5) return new THREE.Color(0x7ab870); // 공원/언덕
+        return new THREE.Color(0xa0a090);               // 도심 (회색빛)
+    }
+
+    _buildTerrain() {
+        const geo = new THREE.PlaneGeometry(240, 240, 128, 128);
+        geo.rotateX(-Math.PI / 2);
+
+        const pos  = geo.attributes.position;
+        const cols = [];
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const h = this.getHeightAt(x, z);
+            pos.setY(i, h);
+            const c = this._vertexColor(x, z, h);
+            cols.push(c.r, c.g, c.b);
+        }
+
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+        geo.computeVertexNormals();
+
+        const mesh = new THREE.Mesh(
+            geo,
+            new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 })
+        );
+        mesh.receiveShadow = true;
+        this.group.add(mesh);
+    }
+
+    _buildRiver() {
+        // 한강 수면
+        const river = new THREE.Mesh(
+            new THREE.PlaneGeometry(240, this._riverHW * 2),
+            new THREE.MeshStandardMaterial({
+                color: 0x2ab5c8, transparent: true, opacity: 0.88,
+                roughness: 0.05, metalness: 0.1
+            })
+        );
+        river.rotation.x = -Math.PI / 2;
+        river.position.set(0, 0.3, this._riverZ);
+        this.group.add(river);
+
+        // 여의도
+        const yd = new THREE.Mesh(
+            new THREE.CylinderGeometry(7, 7, 0.4, 32),
+            new THREE.MeshStandardMaterial({ color: 0x8ab870, roughness: 0.8 })
+        );
+        yd.position.set(-30, 0.35, this._riverZ);
+        this.group.add(yd);
+    }
+
+    _buildBridges() {
+        const z0  = this._riverZ - this._riverHW;
+        const z1  = this._riverZ + this._riverHW;
+        const len = z1 - z0;
+        const plankMat = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BRIDGE_PLANK, roughness: 0.8 });
+        const railMat  = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.BRIDGE_RAIL,  roughness: 0.7 });
+
+        for (const bx of this._bridgeXs) {
+            const deck = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.3, len), plankMat);
+            deck.position.set(bx, 0.5, this._riverZ);
+            deck.castShadow = true;
+            this.group.add(deck);
+            for (const s of [-1, 1]) {
+                const rail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, len), railMat);
+                rail.position.set(bx + s * 1.6, 0.85, this._riverZ);
+                this.group.add(rail);
+            }
+        }
     }
 
     addTo(scene) { scene.add(this.group); }
