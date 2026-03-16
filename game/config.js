@@ -7,7 +7,7 @@ export const CONFIG = {
     SCENE: {
         BACKGROUND: 0x87ceeb,
         FOG_COLOR:  0xa8d8ea,
-        FOG_DENSITY: 0.004
+        FOG_DENSITY: 0.0013  // 3x 맵 스케일에 맞춰 조정
     },
     LIGHTS: {
         AMBIENT: 0xfff5e0,
@@ -20,7 +20,7 @@ export const CONFIG = {
     PHYSICS: {
         GRAVITY: -0.015,
         JUMP_POWER: 0.35,
-        MOVE_SPEED: 0.2,
+        MOVE_SPEED: 0.5,  // 3x 맵에서 쾌적한 이동속도
         ROAD_LIMIT: 14.4,
         BRIDGE_WIDTH: 6
     },
