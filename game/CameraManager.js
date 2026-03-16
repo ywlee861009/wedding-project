@@ -42,18 +42,20 @@ export class CameraManager {
         window.addEventListener('pointerdown', (e) => {
             if (e.target.closest('button, #dialogue-box')) return;
 
-            const isMobile    = window.innerWidth <= 900;
+            const isMobile    = e.pointerType === 'touch' || window.innerWidth <= 900;
             const isRightHalf = e.clientX > window.innerWidth / 2;
             const isRightMouse = e.button === 2;
 
             if ((isMobile && isRightHalf) || (!isMobile && isRightMouse)) {
                 if (this._dragPointerId === null) {
+                    e.preventDefault();
                     this._dragPointerId = e.pointerId;
                     this.isDragging     = true;
                     this._lastPos.set(e.clientX, e.clientY);
+                    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
                 }
             }
-        });
+        }, { passive: false });
 
         window.addEventListener('pointermove', (e) => {
             if (e.pointerId !== this._dragPointerId) return;
@@ -61,13 +63,13 @@ export class CameraManager {
             const deltaX = e.clientX - this._lastPos.x;
             const deltaY = e.clientY - this._lastPos.y;
 
-            const speed = window.innerWidth <= 900 ? 0.012 : this.orbitSpeed;
+            const speed = (e.pointerType === 'touch' || window.innerWidth <= 900) ? 0.012 : this.orbitSpeed;
             this.targetTheta -= deltaX * speed;
             this.targetPhi    = Math.max(0.22, Math.min(Math.PI * 0.46,
                                     this.targetPhi + deltaY * speed));
 
             this._lastPos.set(e.clientX, e.clientY);
-        });
+        }, { passive: false });
 
         const releasePointer = (e) => {
             if (e.pointerId === this._dragPointerId) {
@@ -77,8 +79,6 @@ export class CameraManager {
         };
         window.addEventListener('pointerup',     releasePointer);
         window.addEventListener('pointercancel', releasePointer);
-
-        // 줌 제거 — wheel 이벤트 없음
 
         window.addEventListener('contextmenu', (e) => e.preventDefault());
     }

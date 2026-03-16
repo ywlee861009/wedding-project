@@ -19,53 +19,72 @@
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 
     <style>
+        /* ── 핵심: canvas 터치 시 브라우저 스크롤/줌 개입 완전 차단 ── */
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        html, body { touch-action: none; user-select: none; -webkit-user-select: none; }
+        canvas { touch-action: none; display: block; }
+
         body { margin: 0; overflow: hidden; background: #1a1a2e; }
+
         #ui-overlay {
             position: fixed; top: 20px; left: 20px; color: #333;
-            background: rgba(255, 255, 255, 0.85); padding: 15px;
+            background: rgba(255,255,255,0.85); padding: 15px;
             border-radius: 12px; font-family: sans-serif; z-index: 100;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            pointer-events: none; /* 클릭 방해 금지 */
+            pointer-events: none;
         }
         #status-log { font-size: 12px; color: #0077ff; font-weight: bold; margin-top: 5px; }
 
-        /* 모바일 터치 컨트롤 스타일 */
-        #mobile-controls {
-            position: fixed; bottom: 40px; left: 0; right: 0;
-            display: flex; justify-content: space-between; align-items: flex-end;
-            padding: 0 40px; z-index: 200; pointer-events: none;
-        }
-        
-        /* 🕹️ 플로팅 조이스틱 디자인 (스크립트에서 동적 생성) */
+        /* ── 플로팅 조이스틱 (coastalworld 스타일) ── */
         .joystick-base {
-            position: fixed; width: 100px; height: 100px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(5px); pointer-events: none;
-            z-index: 200; display: none; /* 터치 시에만 표시 */
+            position: fixed;
+            width: 110px; height: 110px;          /* radius = 55px */
+            background: rgba(255,255,255,0.12);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.45);
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            z-index: 300;
+            display: none;
+            /* 터치 시 부드럽게 나타남 */
+            opacity: 0;
+            transition: opacity 0.08s ease;
+        }
+        .joystick-base.active {
+            display: block;
+            opacity: 1;
         }
         .joystick-knob {
-            position: absolute; width: 40px; height: 40px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            left: 50%; top: 50%; margin-left: -20px; margin-top: -20px;
+            position: absolute;
+            width: 46px; height: 46px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.28);
+            left: 50%; top: 50%;
+            margin-left: -23px; margin-top: -23px;
+            transition: transform 0.04s linear;  /* 아주 짧게, 반응성 유지 */
         }
 
+        /* ── 점프 버튼 ── */
         .jump-btn {
-            position: fixed; bottom: 40px; right: 40px;
-            width: 80px; height: 80px; border-radius: 50%; border: none;
-            background: rgba(0, 170, 255, 0.4); color: white;
-            font-size: 16px; font-weight: bold;
-            display: flex; justify-content: center; align-items: center;
-            user-select: none; -webkit-tap-highlight-color: transparent;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-            pointer-events: auto; z-index: 200;
+            position: fixed; bottom: 44px; right: 44px;
+            width: 72px; height: 72px;
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.18);
+            color: white; font-size: 13px; font-weight: 700;
+            display: none;                        /* JS에서 터치기기만 표시 */
+            justify-content: center; align-items: center;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            pointer-events: auto; z-index: 300;
+            transition: transform 0.08s, background 0.08s;
         }
-        .jump-btn:active { background: rgba(0, 170, 255, 0.7); transform: scale(0.9); }
+        .jump-btn:active {
+            background: rgba(255,255,255,0.38);
+            transform: scale(0.88);
+        }
 
-        @media (max-width: 768px) {
-            #pc-instruction { display: none; }
-        }
+        @media (max-width: 768px) { #pc-instruction { display: none; } }
     </style>
 </head>
 <body>
