@@ -6,7 +6,7 @@ import {
     StationEntity, TreeEntity,
     CloudEntity, PlayerEntity, AnimatedPropEntity, FlyingBirdEntity,
     SeoulTerrain, FlowerEntity, BenchEntity, ExclamationMarker,
-    DuckFamilyEntity
+    DuckFamilyEntity, GrassFieldEntity
 } from './entities.js';
 import { InputManager } from './InputManager.js';
 import { CameraManager } from './CameraManager.js';
@@ -78,6 +78,10 @@ const sea = new THREE.Mesh(
 sea.rotation.x = -Math.PI / 2;
 sea.position.y = -0.8;
 scene.add(sea);
+
+// ── 5-1-1. 풀밭 (Instanced Grass + Wind) ─────────────
+const grassField = new GrassFieldEntity(seoulMap);
+grassField.addTo(scene);
 
 // ── 5-2. 서울 경계 숲 벨트 (InstancedMesh) ───────────
 (function buildForestBelt() {
@@ -422,7 +426,7 @@ doksanStation.group.position.y = stH;
 doksanStation.addTo(scene);
 
 // ── 8. 캐릭터·소품 ────────────────────────────────────
-const entitiesToUpdate = [];
+const entitiesToUpdate = [grassField];
 
 // 신부 — 광화문 (15, -24)
 const brideH = seoulMap.getHeightAt(-132, 165);
@@ -687,10 +691,9 @@ function animate() {
         return; // 인트로 중 게임 로직 스킵
     }
 
-    // ── 한강 shimmer ─────────────────────────────────
-    if (seoulMap.riverMesh) {
-        seoulMap.riverMesh.material.emissiveIntensity =
-            0.14 + Math.sin(clock.elapsedTime * 1.8) * 0.06;
+    // ── 한강 물 셰이더 시간 업데이트 ──────────────────
+    if (seoulMap.riverShaderMat) {
+        seoulMap.riverShaderMat.uniforms.uTime.value = clock.elapsedTime;
     }
 
     // ── 신부 근접 체크 ───────────────────────────────

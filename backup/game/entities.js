@@ -15,6 +15,63 @@ function makeGLTFLoader() {
     return loader;
 }
 
+// ── GLSL Shaders ──────────────────────────────────────────
+
+const WATER_VERT = /* glsl */`
+uniform float uTime;
+varying vec2 vUv;
+void main() {
+    vUv = uv;
+    vec3 pos = position;
+    pos.y += sin(pos.x * 0.22 + uTime * 2.1) * 0.14
+           + sin(pos.z * 0.35 + uTime * 1.4) * 0.10
+           + sin((pos.x + pos.z) * 0.12 + uTime * 0.8) * 0.06;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}`;
+
+const WATER_FRAG = /* glsl */`
+uniform float uTime;
+varying vec2 vUv;
+void main() {
+    float r1 = sin(vUv.x * 20.0 - uTime * 2.8) * 0.5 + 0.5;
+    float r2 = sin(vUv.y * 14.0 + uTime * 2.0) * 0.5 + 0.5;
+    float r3 = sin((vUv.x + vUv.y) * 16.0 - uTime * 3.2) * 0.5 + 0.5;
+    float ripple = r1 * r2 * r3;
+    vec3 deep  = vec3(0.04, 0.42, 0.72);
+    vec3 light = vec3(0.35, 0.80, 0.94);
+    vec3 foam  = vec3(0.88, 0.96, 1.00);
+    vec3 col = mix(deep, light, ripple * 0.65);
+    col      = mix(col,  foam,  pow(ripple, 3.5) * 0.28);
+    float edge = pow(abs(vUv.x - 0.5) * 2.0, 4.0);
+    col = mix(col, foam, edge * 0.35);
+    gl_FragColor = vec4(col, 0.90);
+}`;
+
+const GRASS_VERT = /* glsl */`
+uniform float uTime;
+uniform float uWind;
+varying float vHeight;
+void main() {
+    vec4 wOrigin = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    float hFactor = position.y / 0.80;
+    vHeight = hFactor;
+    vec3 pos = position;
+    float curve = hFactor * hFactor;
+    float phase = wOrigin.x * 0.09 + wOrigin.z * 0.06 + uTime * 1.7;
+    pos.x += sin(phase)             * uWind * curve;
+    pos.z += sin(phase * 0.7 + 1.2) * uWind * 0.45 * curve;
+    gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(pos, 1.0);
+}`;
+
+const GRASS_FRAG = /* glsl */`
+varying float vHeight;
+void main() {
+    vec3 baseCol = vec3(0.14, 0.46, 0.08);
+    vec3 tipCol  = vec3(0.52, 0.85, 0.22);
+    vec3 col = mix(baseCol, tipCol, vHeight) * (0.72 + vHeight * 0.28);
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
 /**
  * 플레이어(신랑/신부) 클래스
  */
@@ -416,25 +473,26 @@ export class PalmTreeEntity {
 }
 
 /**
- * 🌲 나무 엔티티 (잎 색상 파라미터화)
+ * 🌲 나무 엔티티 (3단 캐노피)
  */
 export class TreeEntity {
     constructor(x, z, leavesColor = CONFIG.COLORS.TREE_LEAVES) {
         this.group = new THREE.Group();
-        const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.3, 0.3, 1.5),
-            new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_TRUNK })
-        );
-        const leaves = new THREE.Mesh(
-            new THREE.ConeGeometry(1.2, 2.5, 8),
-            new THREE.MeshStandardMaterial({ color: leavesColor })
-        );
-        trunk.position.y = 0.75;
-        leaves.position.y = 2.5;
+        const trunkMat  = new THREE.MeshStandardMaterial({ color: CONFIG.COLORS.TREE_TRUNK, roughness: 0.9 });
+        const leavesMat = new THREE.MeshStandardMaterial({ color: leavesColor, roughness: 0.75 });
+
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, 2.4, 6), trunkMat);
+        trunk.position.y = 1.2;
         trunk.castShadow = true;
-        leaves.castShadow = true;
         this.group.add(trunk);
-        this.group.add(leaves);
+
+        // 3단 캐노피 — 아래로 갈수록 넓게
+        for (const [r, h, y] of [[1.65, 2.2, 2.5], [1.15, 1.9, 3.8], [0.70, 1.6, 5.0]]) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), leavesMat);
+            cone.position.y = y;
+            cone.castShadow = true;
+            this.group.add(cone);
+        }
         this.group.position.set(x, 0, z);
     }
     addTo(scene) { scene.add(this.group); }
@@ -801,6 +859,53 @@ export class CloudEntity {
     addTo(scene) { scene.add(this.group); }
 }
 
+/**
+ * 🌿 바람에 흔들리는 풀밭 (Instanced + Wind Shader)
+ */
+export class GrassFieldEntity {
+    constructor(seoulMap) {
+        const bladeGeo = new THREE.PlaneGeometry(0.22, 0.80, 1, 3);
+        bladeGeo.translate(0, 0.40, 0); // 밑동을 y=0에
+
+        const mat = new THREE.ShaderMaterial({
+            vertexShader:   GRASS_VERT,
+            fragmentShader: GRASS_FRAG,
+            uniforms: {
+                uTime: { value: 0 },
+                uWind: { value: 0.30 },
+            },
+            side: THREE.DoubleSide,
+        });
+        this._mat = mat;
+
+        const COUNT = 9000;
+        this.mesh = new THREE.InstancedMesh(bladeGeo, mat, COUNT);
+        this.mesh.frustumCulled = false;
+
+        const dummy = new THREE.Object3D();
+        let idx = 0;
+        for (let attempt = 0; attempt < COUNT * 5 && idx < COUNT; attempt++) {
+            const x = (Math.random() - 0.5) * 560;
+            const z = (Math.random() - 0.5) * 440;
+            if (!seoulMap.isInSeoul(x, z)) continue;
+            const h = seoulMap.getHeightAt(x, z);
+            if (h > 2.5) continue; // 가파른 산 제외
+            if (z > seoulMap.riverZMin - 1 && z < seoulMap.riverZMax + 1) continue; // 강 제외
+            dummy.position.set(x, h, z);
+            dummy.rotation.y = Math.random() * Math.PI;
+            dummy.scale.setScalar(0.7 + Math.random() * 0.7);
+            dummy.updateMatrix();
+            this.mesh.setMatrixAt(idx, dummy.matrix);
+            idx++;
+        }
+        this.mesh.count = idx;
+        this.mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    update(delta) { this._mat.uniforms.uTime.value += delta; }
+    addTo(scene)  { scene.add(this.mesh); }
+}
+
 export class MemoryFragmentEntity {
     constructor(x, z, infoId) {
         this.infoId = infoId;
@@ -1036,19 +1141,20 @@ export class SeoulTerrain {
     }
 
     _buildRiver() {
-        const river = new THREE.Mesh(
-            new THREE.PlaneGeometry(720, this._riverHW * 2),
-            new THREE.MeshStandardMaterial({
-                color: 0x20d4f0,
-                emissive: 0x0090a8,
-                emissiveIntensity: 0.18,
-                transparent: true, opacity: 0.88,
-                roughness: 0.03, metalness: 0.15
-            })
-        );
-        river.rotation.x = -Math.PI / 2;
-        river.position.set(0, 0.3, this._riverZ);
-        this.riverMesh = river; // shimmer 애니메이션용으로 외부 노출
+        const geo = new THREE.PlaneGeometry(720, this._riverHW * 2, 60, 6);
+        geo.rotateX(-Math.PI / 2);
+
+        const mat = new THREE.ShaderMaterial({
+            vertexShader:   WATER_VERT,
+            fragmentShader: WATER_FRAG,
+            uniforms: { uTime: { value: 0 } },
+            transparent: true,
+        });
+
+        const river = new THREE.Mesh(geo, mat);
+        river.position.set(0, 0.30, this._riverZ);
+        this.riverMesh      = river;
+        this.riverShaderMat = mat; // uTime 업데이트용
         this.group.add(river);
 
         // 여의도 (3x 위치, 3x 크기)
