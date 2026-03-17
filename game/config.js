@@ -49,51 +49,44 @@ export const CONFIG = {
     lifetime: 2.0, // 초
   },
 
-  // 적 기본값
+  // 적 기본값 (20종류 정의)
   ENEMY: {
-    basic: {
-      hp: 30,
-      speed: 70,
-      damage: 10,
-      xp: 5,
-      size: 20,
-      color: '#e74c3c',
-    },
-    fast: {
-      hp: 15,
-      speed: 130,
-      damage: 6,
-      xp: 8,
-      size: 14,
-      color: '#e67e22',
-    },
-    tank: {
-      hp: 150,
-      speed: 40,
-      damage: 20,
-      xp: 20,
-      size: 32,
-      color: '#8e44ad',
-    },
-    boss: {
-      hp: 800,
-      speed: 50,
-      damage: 40,
-      xp: 100,
-      size: 48,
-      color: '#c0392b',
-    },
+    // --- Group A: Chasers (추적형) ---
+    solo_1: { name: '솔로 부대원', hp: 15, speed: 90, damage: 5, xp: 3, size: 16, color: '#ff7675', pattern: 'basic' },
+    solo_2: { name: '질투하는 하객', hp: 30, speed: 80, damage: 8, xp: 6, size: 18, color: '#d63031', pattern: 'basic' },
+    uncle_1: { name: '술취한 삼촌', hp: 60, speed: 50, damage: 15, xp: 12, size: 24, color: '#c0392b', pattern: 'basic' },
+    aunt_1: { name: '잔소리 폭격기', hp: 20, speed: 120, damage: 7, xp: 8, size: 14, color: '#e17055', pattern: 'basic' },
+    relative_1: { name: '엄격한 친척', hp: 100, speed: 60, damage: 20, xp: 20, size: 28, color: '#b2bec3', pattern: 'basic' },
+
+    // --- Group B: Chargers (돌진형) ---
+    thief_1: { name: '축의금 도둑', hp: 25, speed: 100, damage: 12, xp: 15, size: 16, color: '#f1c40f', pattern: 'charge' },
+    runner_1: { name: '뷔페 줄 선 사람', hp: 40, speed: 140, damage: 10, xp: 10, size: 20, color: '#f39c12', pattern: 'charge' },
+    late_1: { name: '지각한 들러리', hp: 35, speed: 110, damage: 15, xp: 14, size: 18, color: '#e67e22', pattern: 'charge' },
+    guard_1: { name: '예식장 보안팀', hp: 150, speed: 80, damage: 25, xp: 30, size: 30, color: '#2d3436', pattern: 'charge' },
+
+    // --- Group C: Ranged/Gimmick (원거리/기믹형) ---
+    gossip_1: { name: '뒷담화 하객', hp: 20, speed: 70, damage: 10, xp: 10, size: 16, color: '#0984e3', pattern: 'ranged' },
+    flower_1: { name: '꽃가루 뿌리개', hp: 45, speed: 60, damage: 5, xp: 15, size: 22, color: '#fd79a8', pattern: 'area' },
+    camera_1: { name: '파파라치', hp: 30, speed: 110, damage: 8, xp: 18, size: 18, color: '#636e72', pattern: 'ranged' },
+    ex_1: { name: '전 남친/여친', hp: 200, speed: 75, damage: 30, xp: 50, size: 32, color: '#6c5ce7', pattern: 'basic' },
+    inviter_1: { name: '청첩장 배달원', hp: 15, speed: 150, damage: 5, xp: 20, size: 14, color: '#00cec9', pattern: 'basic' },
+
+    // --- Group D: Elites & Bosses (강력한 적) ---
+    manager_1: { name: '예식장 매니저', hp: 400, speed: 65, damage: 40, xp: 100, size: 40, color: '#2c3e50', pattern: 'basic' },
+    priest_1: { name: '엄격한 주례선생', hp: 1000, speed: 40, damage: 50, xp: 300, size: 50, color: '#34495e', pattern: 'boss' },
+    wedding_dest: { name: '결혼 파괴자', hp: 500, speed: 90, damage: 35, xp: 150, size: 44, color: '#d63031', pattern: 'charge' },
+    debt_1: { name: '축의금 정산원', hp: 250, speed: 110, damage: 20, xp: 80, size: 36, color: '#f1c40f', pattern: 'basic' },
+    photog_1: { name: '결혼식 사진가', hp: 180, speed: 85, damage: 15, xp: 60, size: 30, color: '#7f8c8d', pattern: 'ranged' },
+    final_boss: { name: '진정한 사랑의 시련', hp: 5000, speed: 60, damage: 60, xp: 1000, size: 80, color: '#e84393', pattern: 'boss' },
   },
 
   // 웨이브 설정
   WAVE: {
-    // 각 웨이브 시작 시간 (초)
-    // waveIndex: 0-based
-    baseDuration: 60,      // 웨이브 당 60초
-    spawnIntervalBase: 2.0, // 기본 스폰 주기 (초)
-    spawnIntervalMin: 0.4,  // 최소 스폰 주기
-    enemyCountMultiplier: 1.3, // 웨이브마다 적 수 배율
-    bossWaves: [3, 6, 9],   // 보스 출현 웨이브 (0-based)
+    baseDuration: 30,      // 웨이브 당 30초
+    spawnIntervalBase: 1.0, // 기본 스폰 주기
+    spawnIntervalMin: 0.1,  // 최소 스폰 주기
+    enemyCountMultiplier: 1.5, // 웨이브마다 적 수 배율
+    bossWaves: [5, 10, 15],   // 보스 출현 웨이브
   },
 
   // 경험치 오브

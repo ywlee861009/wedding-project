@@ -80,12 +80,12 @@ export class RenderSystem {
 
       ctx.beginPath();
       ctx.arc(sx, sy, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = '#f1c40f';
+      ctx.fillStyle = '#000000'; // 검정색 투사체
       ctx.fill();
-      // 빛나는 효과
+      // 빛나는 효과 (검정색이므로 그림자 느낌으로 변경)
       ctx.beginPath();
       ctx.arc(sx, sy, p.size * 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(241,196,15,0.2)';
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
       ctx.fill();
     }
     ctx.restore();
@@ -101,19 +101,31 @@ export class RenderSystem {
       const ch = this.game.canvas.height;
       if (sx < -60 || sx > cw + 60 || sy < -60 || sy > ch + 60) continue;
 
-      const isBoss = e.type === 'boss';
+      const isBoss = e.pattern === 'boss';
       const fillColor = e.hitFlash > 0 ? '#fff' : e.color;
+
+      // 콩콩 뛰는 애니메이션 (Brotato 스타일)
+      const t = e.animTime || 0;
+      const jumpY = -Math.abs(Math.sin(t)) * 4;
+      const squashX = 1 + Math.sin(t * 2) * 0.08;
+      const squashY = 1 / squashX;
+
+      ctx.save();
+      ctx.translate(sx, sy + jumpY);
+      ctx.scale(e.facing * squashX, squashY);
 
       // 본체
       ctx.beginPath();
-      ctx.arc(sx, sy, e.size, 0, Math.PI * 2);
+      ctx.arc(0, -e.size, e.size, 0, Math.PI * 2);
       ctx.fillStyle = fillColor;
       ctx.fill();
+      
       if (isBoss) {
-        ctx.strokeStyle = '#c0392b';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
+      ctx.restore();
 
       // HP 바 (보스는 항상, 일반 적은 피격 후 잠시)
       if (isBoss || e.hitFlash > 0 || e.hp < e.maxHp) {
@@ -138,24 +150,40 @@ export class RenderSystem {
     // 무적 중이면 깜빡임
     if (player.invincibleTimer > 0 && Math.floor(player.invincibleTimer * 10) % 2 === 0) return;
 
+    // 애니메이션 계산 (Brotato 스타일)
+    let wobble = 0;
+    let squashX = 1;
+    let squashY = 1;
+    let jumpY = 0;
+
+    if (player.isMoving || player.animTime > 0.1) {
+      const t = player.animTime;
+      wobble = Math.sin(t) * 0.15; // 좌우 흔들림 (라디안)
+      jumpY = -Math.abs(Math.sin(t)) * 5; // 위로 콩콩 뛰는 높이
+      squashX = 1 + Math.sin(t * 2) * 0.1; // 옆으로 퍼짐
+      squashY = 1 / squashX; // 볼륨 보존
+    }
+
     ctx.save();
-    ctx.translate(sx, sy);
-    if (player.facing < 0) ctx.scale(-1, 1);
+    ctx.translate(sx, sy + jumpY);
+    ctx.rotate(wobble);
+    ctx.scale(player.facing * squashX, squashY);
 
     if (player.image.complete && player.image.naturalWidth > 0) {
       const s = player.size * 2;
-      ctx.drawImage(player.image, -s / 2, -s / 2, s, s);
+      // 발끝(Pivot)을 기준으로 회전/스케일이 적용되도록 y축 오프셋 조정
+      ctx.drawImage(player.image, -s / 2, -s, s, s);
     } else {
       // 폴백: 원
       ctx.beginPath();
-      ctx.arc(0, 0, player.size, 0, Math.PI * 2);
+      ctx.arc(0, -player.size, player.size, 0, Math.PI * 2);
       ctx.fillStyle = '#2ecc71';
       ctx.fill();
     }
     ctx.restore();
 
     // 케로 펫
-    this._drawKero(ctx, player.kero, camera);
+    this._drawKero(ctx, player.kero, camera, player.animTime);
 
     // 공격 범위 시각화 (디버그용, 필요 시 주석 해제)
     // ctx.beginPath();
@@ -164,19 +192,22 @@ export class RenderSystem {
     // ctx.stroke();
   }
 
-  _drawKero(ctx, kero, camera) {
+  _drawKero(ctx, kero, camera, animTime) {
     if (!kero) return;
     const sx = kero.worldX - camera.x;
     const sy = kero.worldY - camera.y;
 
+    // 펫은 플레이어보다 조금 느리게/다르게 bobbing
+    const jumpY = Math.sin(animTime * 0.8) * 3;
+
     ctx.save();
-    ctx.translate(sx, sy);
+    ctx.translate(sx, sy + jumpY);
     if (kero.image.complete && kero.image.naturalWidth > 0) {
       const s = kero.size * 2;
-      ctx.drawImage(kero.image, -s / 2, -s / 2, s, s);
+      ctx.drawImage(kero.image, -s / 2, -s, s, s);
     } else {
       ctx.beginPath();
-      ctx.arc(0, 0, kero.size, 0, Math.PI * 2);
+      ctx.arc(0, -kero.size, kero.size, 0, Math.PI * 2);
       ctx.fillStyle = '#27ae60';
       ctx.fill();
     }

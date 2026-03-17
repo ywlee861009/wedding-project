@@ -31,33 +31,43 @@ export class Player {
     this.image = new Image();
     this.image.src = `../design/char_${charType}.png`;
 
-    // 케로 펫 (항상 동반)
-    this.kero = new KeroPet();
-    this.kero.worldX = this.worldX + CONFIG.KERO.offsetX;
-    this.kero.worldY = this.worldY + CONFIG.KERO.offsetY;
+    // 케로 펫 (나중에 합류하도록 초기값 null)
+    this.kero = null;
 
     // 무적 시간 (피격 후 잠깐 무적)
     this.invincibleTimer = 0;
 
     // 마지막 이동 방향 (렌더용)
     this.facing = 1; // 1=right, -1=left
+
+    // 애니메이션 상태
+    this.isMoving = false;
+    this.animTime = 0;
   }
 
   move(dir, dt, canvasW, canvasH) {
     const len = Math.hypot(dir.x, dir.y);
     if (len > 0) {
+      this.isMoving = true;
+      this.animTime += dt * 15; // 애니메이션 속도 조절
       const nx = dir.x / len;
       const ny = dir.y / len;
       this.worldX += nx * this.speed * dt;
       this.worldY += ny * this.speed * dt;
       if (nx !== 0) this.facing = nx > 0 ? 1 : -1;
+    } else {
+      this.isMoving = false;
+      // 멈췄을 때 서서히 애니메이션 초기화 (부드럽게)
+      this.animTime = (this.animTime % (Math.PI * 2)) * 0.9;
     }
 
-    // 케로 펫 위치 (플레이어 왼쪽 뒤)
-    const keroTargetX = this.worldX + CONFIG.KERO.offsetX * this.facing;
-    const keroTargetY = this.worldY + CONFIG.KERO.offsetY;
-    this.kero.worldX += (keroTargetX - this.kero.worldX) * 8 * dt;
-    this.kero.worldY += (keroTargetY - this.kero.worldY) * 8 * dt;
+    // 케로 펫 위치 (합류했을 경우에만 업데이트)
+    if (this.kero) {
+      const keroTargetX = this.worldX + CONFIG.KERO.offsetX * this.facing;
+      const keroTargetY = this.worldY + CONFIG.KERO.offsetY;
+      this.kero.worldX += (keroTargetX - this.kero.worldX) * 8 * dt;
+      this.kero.worldY += (keroTargetY - this.kero.worldY) * 8 * dt;
+    }
 
     // 무적 타이머
     if (this.invincibleTimer > 0) this.invincibleTimer -= dt;

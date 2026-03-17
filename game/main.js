@@ -14,7 +14,7 @@ class Game {
     this.ctx = this.canvas.getContext('2d');
 
     this.state = 'start'; // 'start' | 'playing' | 'levelup' | 'gameover'
-    this.selectedChar = 'youngwoo';
+    this.selectedChar = 'moonhee'; // 기본 캐릭터 문희로 설정
     this.elapsedTime = 0;
     this.killCount = 0;
 
@@ -74,6 +74,7 @@ class Game {
   }
 
   _startGame() {
+    this.selectedChar = 'moonhee'; // 주인공 문희로 고정
     document.getElementById('start-screen').style.display = 'none';
 
     this.elapsedTime = 0;

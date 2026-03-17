@@ -29,7 +29,12 @@ export class SpawnSystem {
     this._spawnTimer -= dt;
     if (this._spawnTimer <= 0) {
       this._spawnTimer = this._spawnInterval;
-      this._spawnEnemy();
+      
+      // 한 번에 여러 마리 스폰 (물량전)
+      const count = Math.floor(2 + this.wave * 1.5); // 초반 3마리부터 시작, 웨이브마다 급증
+      for (let i = 0; i < count; i++) {
+        this._spawnEnemy();
+      }
     }
   }
 
@@ -74,17 +79,33 @@ export class SpawnSystem {
   _pickType() {
     const w = this.wave;
     const r = Math.random();
-    if (w < 2) return 'basic';
-    if (w < 4) return r < 0.7 ? 'basic' : 'fast';
-    if (w < 6) return r < 0.5 ? 'basic' : r < 0.8 ? 'fast' : 'tank';
-    return r < 0.35 ? 'basic' : r < 0.6 ? 'fast' : r < 0.85 ? 'tank' : 'basic';
+    
+    // 웨이브별 적 조합 (20종류 분산)
+    if (w === 1) return 'solo_1';
+    if (w === 2) return r < 0.6 ? 'solo_1' : 'solo_2';
+    if (w === 3) return r < 0.4 ? 'solo_1' : r < 0.8 ? 'solo_2' : 'thief_1';
+    if (w === 4) return r < 0.5 ? 'solo_2' : r < 0.8 ? 'thief_1' : 'aunt_1';
+    if (w === 5) return r < 0.4 ? 'uncle_1' : r < 0.7 ? 'runner_1' : 'gossip_1';
+    if (w === 6) return r < 0.3 ? 'relative_1' : r < 0.6 ? 'late_1' : 'flower_1';
+    if (w === 7) return r < 0.4 ? 'guard_1' : r < 0.7 ? 'camera_1' : 'ex_1';
+    if (w === 8) return r < 0.3 ? 'inviter_1' : r < 0.6 ? 'manager_1' : 'debt_1';
+    if (w === 9) return r < 0.4 ? 'photog_1' : r < 0.7 ? 'wedding_dest' : 'solo_2';
+    
+    // 10웨이브 이후엔 무작위 엘리트 조합
+    const elites = ['manager_1', 'debt_1', 'photog_1', 'wedding_dest', 'ex_1', 'guard_1'];
+    return elites[Math.floor(Math.random() * elites.length)];
   }
 
   _spawnBoss() {
     const { worldX, worldY } = this.game.player;
     const ex = worldX + (this.game.canvas.width / 2 + 100) * (Math.random() > 0.5 ? 1 : -1);
     const ey = worldY;
-    this.game.enemies.push(new Enemy('boss', ex, ey, this._waveScale));
+
+    let bossType = 'priest_1';
+    if (this.wave >= 15) bossType = 'final_boss';
+    else if (this.wave >= 10) bossType = 'wedding_dest';
+
+    this.game.enemies.push(new Enemy(bossType, ex, ey, this._waveScale));
   }
 
   // 적이 죽을 때 XP 오브 드롭 (외부에서 호출)

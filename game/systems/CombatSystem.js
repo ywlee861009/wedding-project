@@ -15,7 +15,8 @@ export class CombatSystem {
 
         if (this._circles(proj.worldX, proj.worldY, proj.size,
                           enemy.worldX, enemy.worldY, enemy.size)) {
-          enemy.takeDamage(proj.damage);
+          const dmg = proj.damage || 10; // 만약 undefined면 기본값 10이라도 적용
+          enemy.takeDamage(dmg);
           proj.onHit(enemy);
 
           if (enemy.dead) {
