@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>케로와 친구들 - 생존 게임</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hud-left">
+        <div id="hp-bar-container">
+          <span class="hud-label">HP</span>
+          <div id="hp-bar-bg">
+            <div id="hp-bar"></div>
+          </div>
+          <span id="hp-text">100/100</span>
+        </div>
+        <div id="xp-bar-container">
+          <span class="hud-label">XP</span>
+          <div id="xp-bar-bg">
+            <div id="xp-bar"></div>
+          </div>
+          <span id="level-text">Lv.1</span>
+        </div>
+      </div>
+      <div id="hud-center">
+        <div id="timer-display">00:00</div>
+        <div id="wave-display">Wave 1</div>
+      </div>
+      <div id="hud-right">
+        <div id="kill-count">처치: 0</div>
+      </div>
+    </div>
+
+    <!-- 능력 선택 팝업 -->
+    <div id="ability-select" class="hidden">
+      <div id="ability-select-inner">
+        <h2>레벨 업!</h2>
+        <p>능력을 선택하세요</p>
+        <div id="ability-cards"></div>
+      </div>
+    </div>
+
+    <!-- 게임 오버 화면 -->
+    <div id="game-over-screen" class="hidden">
+      <div id="game-over-inner">
+        <h1>게임 오버</h1>
+        <div id="result-stats">
+          <p>생존 시간: <span id="result-time">00:00</span></p>
+          <p>처치 수: <span id="result-kills">0</span></p>
+          <p>최고 레벨: <span id="result-level">1</span></p>
+        </div>
+        <button id="restart-btn">다시 시작</button>
+      </div>
+    </div>
+
+    <!-- 시작 화면 -->
+    <div id="start-screen">
+      <div id="start-inner">
+        <h1>케로와 친구들</h1>
+        <p class="subtitle">생존 게임</p>
+        <div id="char-select">
+          <div class="char-card selected" data-char="youngwoo">
+            <div class="char-portrait youngwoo-portrait"></div>
+            <p class="char-name">영우</p>
+            <p class="char-desc">밸런스형</p>
+          </div>
+          <div class="char-card" data-char="moonhee">
+            <div class="char-portrait moonhee-portrait"></div>
+            <p class="char-name">문희</p>
+            <p class="char-desc">범위 공격형</p>
+          </div>
+        </div>
+        <button id="start-btn">게임 시작</button>
+      </div>
+    </div>
+
+    <!-- 모바일 조이스틱 -->
+    <div id="joystick-area">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../game/main.js"></script>
+</body>
+</html>
