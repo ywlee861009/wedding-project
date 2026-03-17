@@ -121,7 +121,7 @@ export class Player {
   takeDamage(dmg) {
     if (this.invincibleTimer > 0) return;
     this.hp -= dmg;
-    this.invincibleTimer = 0.5;
+    this.invincibleTimer = 0.25; // 0.5초에서 0.25초로 단축 (타이트한 생존)
     if (this.hp < 0) this.hp = 0;
   }
 }

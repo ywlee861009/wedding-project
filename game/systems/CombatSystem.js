@@ -32,7 +32,8 @@ export class CombatSystem {
       if (enemy.dead) continue;
       if (this._circles(enemy.worldX, enemy.worldY, enemy.size,
                         player.worldX, player.worldY, player.size)) {
-        player.takeDamage(enemy.damage * dt * 2); // 초당 데미지 * 접촉 계수
+        // 초당 데미지가 아니라, 닿는 순간 적의 데미지를 통째로 입힘 (무적 시간이 있으므로 안전)
+        player.takeDamage(enemy.damage); 
       }
     }
   }
