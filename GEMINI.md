@@ -23,5 +23,18 @@
 - `tickets/`: 상세 작업 티켓.
 
 ---
+
+## 🏷️ 4. 버전 관리 규칙 (Versioning Rules)
+이 프로젝트는 다음 규칙에 따라 버전을 관리하며, `config.js`의 `VERSION` 객체에 반영한다.
+
+- **Patch (vX.X.N)**: 
+    - 사용자의 프롬프트 입력으로 인해 코드가 수정되거나 기능이 개선될 때마다 **1씩 증가**시킨다.
+    - 범위는 **0 ~ 999**까지이며, 999를 초과하면 Minor 버전을 올리고 Patch는 0으로 초기화한다.
+- **Minor (vX.N.X)**: 
+    - 사용자가 명시적으로 Minor 업데이트를 요청하거나, Patch 버전이 999를 초과했을 때 올린다.
+- **Major (vN.X.X)**: 
+    - 사용자가 명시적으로 Major 업데이트를 요청하거나, 프로젝트의 근간이 바뀌는 대규모 개편 시 올린다.
+
+---
 *Last Updated: 2026-03-17*  
 *Updated by: Kero (Survivor-like Specialist)*
