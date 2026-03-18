@@ -57,13 +57,24 @@ export class RenderSystem {
       if (sx < -20 || sx > this.game.canvas.width + 20 ||
           sy < -20 || sy > this.game.canvas.height + 20) continue;
 
+      const r = orb.size / 2;
+      
+      // 메인 구체
       ctx.beginPath();
-      ctx.arc(sx, sy, orb.size / 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#3498db';
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fillStyle = orb.color;
       ctx.fill();
+
+      // 빛나는 효과 (Glow)
       ctx.beginPath();
-      ctx.arc(sx - orb.size * 0.15, sy - orb.size * 0.15, orb.size * 0.2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.arc(sx, sy, r * 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = orb.color + '33'; // 20% 투명도
+      ctx.fill();
+
+      // 하이라이트 (반짝임)
+      ctx.beginPath();
+      ctx.arc(sx - r * 0.3, sy - r * 0.3, r * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fill();
     }
     ctx.restore();
@@ -114,15 +125,24 @@ export class RenderSystem {
       ctx.translate(sx, sy + jumpY);
       ctx.scale(e.facing * squashX, squashY);
 
-      // 본체
-      ctx.beginPath();
-      ctx.arc(0, -e.size, e.size, 0, Math.PI * 2);
-      ctx.fillStyle = fillColor;
-      ctx.fill();
+      if (e.image.complete && e.image.naturalWidth > 0) {
+        const s = e.size * 2;
+        // 피격 시 하얗게 반짝이는 효과 (필터 사용)
+        if (e.hitFlash > 0) {
+          ctx.filter = 'brightness(3)'; // 피격 시 강한 밝기
+        }
+        ctx.drawImage(e.image, -s / 2, -s, s, s);
+      } else {
+        // 폴백: 원
+        ctx.beginPath();
+        ctx.arc(0, -e.size, e.size, 0, Math.PI * 2);
+        ctx.fillStyle = e.hitFlash > 0 ? '#fff' : (e.color || '#e74c3c');
+        ctx.fill();
+      }
       
       if (isBoss) {
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
       ctx.restore();
@@ -158,10 +178,10 @@ export class RenderSystem {
 
     if (player.isMoving || player.animTime > 0.1) {
       const t = player.animTime;
-      wobble = Math.sin(t) * 0.15; // 좌우 흔들림 (라디안)
-      jumpY = -Math.abs(Math.sin(t)) * 5; // 위로 콩콩 뛰는 높이
-      squashX = 1 + Math.sin(t * 2) * 0.1; // 옆으로 퍼짐
-      squashY = 1 / squashX; // 볼륨 보존
+      wobble = Math.sin(t) * 0.05; // 0.15 -> 0.05 (미세한 흔들림)
+      jumpY = -Math.abs(Math.sin(t)) * 2; // 5 -> 2 (살짝만 뜀)
+      squashX = 1 + Math.sin(t * 2) * 0.03; // 0.1 -> 0.03 (부드러운 변형)
+      squashY = 1 / squashX;
     }
 
     ctx.save();
@@ -182,8 +202,10 @@ export class RenderSystem {
     }
     ctx.restore();
 
-    // 케로 펫
-    this._drawKero(ctx, player.kero, camera, player.animTime);
+    // 동료들 그리기 (영우, 케로 등)
+    player.companions.forEach((c, idx) => {
+      this._drawCompanion(ctx, c, camera, player.animTime + idx * 0.5);
+    });
 
     // 공격 범위 시각화 (디버그용, 필요 시 주석 해제)
     // ctx.beginPath();
@@ -192,22 +214,21 @@ export class RenderSystem {
     // ctx.stroke();
   }
 
-  _drawKero(ctx, kero, camera, animTime) {
-    if (!kero) return;
-    const sx = kero.worldX - camera.x;
-    const sy = kero.worldY - camera.y;
+  _drawCompanion(ctx, comp, camera, animTime) {
+    if (!comp) return;
+    const sx = comp.worldX - camera.x;
+    const sy = comp.worldY - camera.y;
 
-    // 펫은 플레이어보다 조금 느리게/다르게 bobbing
     const jumpY = Math.sin(animTime * 0.8) * 3;
 
     ctx.save();
     ctx.translate(sx, sy + jumpY);
-    if (kero.image.complete && kero.image.naturalWidth > 0) {
-      const s = kero.size * 2;
-      ctx.drawImage(kero.image, -s / 2, -s, s, s);
+    if (comp.image.complete && comp.image.naturalWidth > 0) {
+      const s = comp.size * 2;
+      ctx.drawImage(comp.image, -s / 2, -s, s, s);
     } else {
       ctx.beginPath();
-      ctx.arc(0, -kero.size, kero.size, 0, Math.PI * 2);
+      ctx.arc(0, -comp.size, comp.size, 0, Math.PI * 2);
       ctx.fillStyle = '#27ae60';
       ctx.fill();
     }

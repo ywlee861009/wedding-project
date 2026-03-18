@@ -15,8 +15,9 @@ export class CombatSystem {
 
         if (this._circles(proj.worldX, proj.worldY, proj.size,
                           enemy.worldX, enemy.worldY, enemy.size)) {
-          const dmg = proj.damage || 10; // 만약 undefined면 기본값 10이라도 적용
-          enemy.takeDamage(dmg);
+          const dmg = proj.damage || 10;
+          // 투사체의 방향(proj.dx, proj.dy)을 넉백 방향으로 전달
+          enemy.takeDamage(dmg, proj.dx, proj.dy); 
           proj.onHit(enemy);
 
           if (enemy.dead) {

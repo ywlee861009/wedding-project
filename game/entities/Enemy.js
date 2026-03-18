@@ -14,8 +14,12 @@ export class Enemy {
     this.damage = Math.floor(base.damage * waveScale);
     this.xp = base.xp;
     this.size = base.size;
-    this.color = base.color;
     this.pattern = base.pattern || 'basic';
+    this.gemColor = base.gemColor || '#3498db';
+
+    // 이미지 로드
+    this.image = new Image();
+    this.image.src = `../design/${base.asset}`;
 
     this.dead = false;
     this.facing = 1;
@@ -128,10 +132,16 @@ export class Enemy {
     }
   }
 
-  takeDamage(dmg) {
+  takeDamage(dmg, kx = 0, ky = 0) {
     const validDmg = Number(dmg) || 0;
     this.hp -= validDmg;
     this.hitFlash = 0.12;
+
+    // 넉백 (Knockback) 효과 대폭 강화
+    const knockbackForce = this.pattern === 'boss' ? 10 : 40; // 15 -> 40으로 강화
+    this.worldX += kx * knockbackForce;
+    this.worldY += ky * knockbackForce;
+
     if (this.hp <= 0) {
       this.hp = 0;
       this.dead = true;
@@ -150,12 +160,23 @@ export class Enemy {
 
 // XP 오브
 export class XpOrb {
-  constructor(worldX, worldY, amount) {
+  constructor(worldX, worldY, amount, color) {
     this.worldX = worldX;
     this.worldY = worldY;
     this.amount = amount;
     this.collected = false;
-    this.size = CONFIG.XP_ORB.size;
+    this.color = color || '#3498db'; // 전달받은 고유 색상 적용
+    
+    // 크기는 여전히 경험치 양에 비례 (시각적 피드백)
+    if (amount >= 200) {
+      this.size = CONFIG.XP_ORB.size * 2.2;
+    } else if (amount >= 50) {
+      this.size = CONFIG.XP_ORB.size * 1.6;
+    } else if (amount >= 15) {
+      this.size = CONFIG.XP_ORB.size * 1.3;
+    } else {
+      this.size = CONFIG.XP_ORB.size;
+    }
   }
 
   update(dt, player) {

@@ -51,15 +51,6 @@ class Game {
   }
 
   _bindUI() {
-    // 캐릭터 선택
-    document.querySelectorAll('.char-card').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        this.selectedChar = card.dataset.char;
-      });
-    });
-
     // 게임 시작
     document.getElementById('start-btn').addEventListener('click', () => {
       this._startGame();
@@ -94,7 +85,7 @@ class Game {
 
   _loop(timestamp) {
     if (this._lastTime === null) this._lastTime = timestamp;
-    const dt = Math.min((timestamp - this._lastTime) / 1000, 0.1); // 초 단위, max 0.1s
+    const dt = Math.min((timestamp - this._lastTime) / 1000, 0.1);
     this._lastTime = timestamp;
 
     if (this.state === 'playing') {
@@ -112,15 +103,12 @@ class Game {
     const dir = this.inputSystem.getDirection();
     this.player.move(dir, dt, this.canvas.width, this.canvas.height);
 
-    // 카메라: 플레이어를 항상 화면 중앙에
+    // 카메라
     this.camera.x = this.player.worldX - this.canvas.width / 2;
     this.camera.y = this.player.worldY - this.canvas.height / 2;
 
     // 자동 공격
     this.player.updateAttack(dt, this.enemies, this.projectiles);
-    if (this.player.kero) {
-      this.player.kero.updateAttack(dt, this.enemies, this.projectiles);
-    }
 
     // HP 재생
     if (this.player.regen) {
@@ -142,6 +130,9 @@ class Game {
       const e = this.enemies[i];
       e.update(dt, this.player);
       if (e.dead) {
+        if (e.pattern === 'boss') {
+          this._handleBossDefeat(this.spawnSystem.wave);
+        }
         this.enemies.splice(i, 1);
       }
     }
@@ -168,8 +159,51 @@ class Game {
     }
   }
 
+  _handleBossDefeat(wave) {
+    if (wave === 10) {
+      this.player.addCompanion('youngwoo');
+      this._showFloatingText("신랑 영우 구출 성공!! (합류)");
+    } else if (wave === 20) {
+      this.player.addCompanion('kero');
+      this._showFloatingText("케로 구출 성공!! (합류)");
+    } else if (wave === 30) {
+      this.player.transformToWedding();
+      this._showFloatingText("진정한 사랑의 힘!! (웨딩 진화)");
+    } else if (wave === 40) {
+      this._winGame();
+    }
+  }
+
+  showBossAlert() {
+    const el = document.createElement('div');
+    el.className = 'boss-appear-alert';
+    el.textContent = "WARNING: BOSS APPEAR!!";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+
+  _showFloatingText(text) {
+    const el = document.createElement('div');
+    el.className = 'boss-reward-text';
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  _winGame() {
+    this.state = 'gameover';
+    document.getElementById('result-title').textContent = "축하합니다! 결혼 성공!";
+    const mm = String(Math.floor(this.elapsedTime / 60)).padStart(2, '0');
+    const ss = String(Math.floor(this.elapsedTime % 60)).padStart(2, '0');
+    document.getElementById('result-time').textContent = `${mm}:${ss}`;
+    document.getElementById('result-kills').textContent = this.killCount;
+    document.getElementById('result-level').textContent = this.levelSystem.level;
+    document.getElementById('game-over-screen').classList.remove('hidden');
+  }
+
   _gameOver() {
     this.state = 'gameover';
+    document.getElementById('result-title').textContent = "게임 오버";
     const mm = String(Math.floor(this.elapsedTime / 60)).padStart(2, '0');
     const ss = String(Math.floor(this.elapsedTime % 60)).padStart(2, '0');
     document.getElementById('result-time').textContent = `${mm}:${ss}`;

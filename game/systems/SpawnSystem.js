@@ -30,8 +30,8 @@ export class SpawnSystem {
     if (this._spawnTimer <= 0) {
       this._spawnTimer = this._spawnInterval;
       
-      // 한 번에 여러 마리 스폰 (물량전)
-      const count = Math.floor(2 + this.wave * 1.5); // 초반 3마리부터 시작, 웨이브마다 급증
+      // 한 번에 나오는 마리 수 조절 (난이도 하향)
+      const count = Math.floor(1 + this.wave * 0.5); 
       for (let i = 0; i < count; i++) {
         this._spawnEnemy();
       }
@@ -40,16 +40,23 @@ export class SpawnSystem {
 
   _nextWave() {
     this.wave++;
+    
+    // 40웨이브 종료 체크
+    if (this.wave > CONFIG.WAVE.totalWaves) {
+      // 마지막 보스까지 잡아야 하므로 일단 웨이브만 멈춤
+      return;
+    }
+
     this._waveScale = 1 + (this.wave - 1) * 0.25;
     this._spawnInterval = Math.max(
       CONFIG.WAVE.spawnIntervalMin,
       CONFIG.WAVE.spawnIntervalBase / (1 + (this.wave - 1) * 0.3)
     );
 
-    // 보스 웨이브
-    const bossWaves = CONFIG.WAVE.bossWaves; // 0-based indices
-    if (bossWaves.includes(this.wave - 1)) {
+    // 보스 웨이브 체크
+    if (CONFIG.WAVE.bossWaves.includes(this.wave)) {
       this._spawnBoss();
+      this.game.showBossAlert();
     }
   }
 
@@ -110,6 +117,6 @@ export class SpawnSystem {
 
   // 적이 죽을 때 XP 오브 드롭 (외부에서 호출)
   dropXpOrb(enemy) {
-    this.game.xpOrbs.push(new XpOrb(enemy.worldX, enemy.worldY, enemy.xp));
+    this.game.xpOrbs.push(new XpOrb(enemy.worldX, enemy.worldY, enemy.xp, enemy.gemColor));
   }
 }

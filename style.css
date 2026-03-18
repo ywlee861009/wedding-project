@@ -359,15 +359,13 @@ body {
   box-shadow: 0 8px 24px rgba(241,196,15,0.4);
 }
 
-/* ── 조이스틱 ── */
+/* ── 조이스틱 (플로팅) ── */
 #joystick-area {
   position: absolute;
-  bottom: 40px;
-  left: 40px;
-  width: 120px;
-  height: 120px;
+  inset: 0; /* 화면 전체 영역에서 터치 감지 */
   z-index: 20;
   display: none;
+  touch-action: none;
 }
 
 @media (pointer: coarse) {
@@ -377,24 +375,67 @@ body {
 }
 
 #joystick-base {
-  width: 120px;
-  height: 120px;
+  position: absolute;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  border: 2px solid rgba(255,255,255,0.3);
-  position: relative;
-  touch-action: none;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  transform: translate(-50%, -50%); /* 중심 정렬 */
+  display: none; /* 평소에는 숨김 */
+  pointer-events: none;
 }
 
 #joystick-knob {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.6);
-  border: 2px solid rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.8);
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+/* ── 추가 효과 ── */
+.boss-reward-text {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  font-weight: bold;
+  color: #f1c40f;
+  text-shadow: 0 0 20px rgba(241,196,15,0.8), 2px 2px #000;
+  animation: bossTextAnim 3s forwards;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+@keyframes bossTextAnim {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -150%) scale(0.8); opacity: 0; }
+}
+
+.boss-appear-alert {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 64px;
+  color: #e74c3c;
+  font-weight: 900;
+  text-transform: uppercase;
+  animation: blink 0.5s infinite;
+  z-index: 1001;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
 }
