@@ -30,12 +30,14 @@ export class LevelSystem {
     this.level++;
     this.xpToNext = this._calculateNextXP(this.level);
 
-    // 3가지 능력 랜덤 선택 (중복 허용하여 계속 강화 가능하게)
+    // 3가지 고유 능력 랜덤 선택
     const choices = [];
-    const pool = [...ABILITIES];
-    for (let i = 0; i < 3; i++) {
+    const pool = [...ABILITIES]; // 원본 보존을 위해 복사
+    
+    for (let i = 0; i < 3 && pool.length > 0; i++) {
       const idx = Math.floor(Math.random() * pool.length);
-      choices.push(pool[idx]); // 원본 ABILITIES는 작으므로 중복 선택 가능하도록
+      // 선택된 항목을 pool에서 꺼내어(splice) 중복 방지
+      choices.push(pool.splice(idx, 1)[0]);
     }
 
     this.game.abilitySelect.show(choices);

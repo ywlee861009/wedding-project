@@ -39,10 +39,17 @@ class Game {
     this._resize();
     window.addEventListener('resize', () => this._resize());
 
+    this._displayVersion();
     this._bindUI();
 
     this._lastTime = null;
     requestAnimationFrame((t) => this._loop(t));
+  }
+
+  _displayVersion() {
+    const v = CONFIG.VERSION;
+    const el = document.getElementById('version-display');
+    if (el) el.textContent = `v${v.major}.${v.minor}.${v.patch}`;
   }
 
   _resize() {

@@ -1,6 +1,11 @@
 // 게임 밸런스 상수
 
 export const CONFIG = {
+  VERSION: {
+    major: 1,
+    minor: 0,
+    patch: 4
+  },
   CANVAS: { WIDTH: 800, HEIGHT: 600 },
   WORLD: { TILE_SIZE: 64 },
 
@@ -22,7 +27,7 @@ export const CONFIG = {
 
   PROJECTILE: { speed: 500, size: 7, lifetime: 3.0 },
 
-  // 적 20종 (이전 설정 유지...)
+  // 적 20종 데이터
   ENEMY: {
     solo_1: { name: '솔로 부대원', hp: 12, speed: 85, damage: 3, xp: 4, size: 24, asset: 'mon1.png', gemColor: '#ff7675', pattern: 'basic' },
     solo_2: { name: '질투하는 하객', hp: 25, speed: 75, damage: 5, xp: 7, size: 26, asset: 'mon2.png', gemColor: '#d63031', pattern: 'basic' },
@@ -48,30 +53,89 @@ export const CONFIG = {
 
   WAVE: {
     totalWaves: 40,
-    baseDuration: 30,      // 한 웨이브당 30초 (총 20분 플레이)
+    baseDuration: 30,
     spawnIntervalBase: 2.0,
     spawnIntervalMin: 0.3,
     enemyCountMultiplier: 1.1,
-    bossWaves: [10, 20, 30, 40], // 10, 20, 30, 40 웨이브에 보스 등장
+    bossWaves: [10, 20, 30, 40],
   },
 
   XP_ORB: { size: 8, pickupRadius: 60, magnetRadius: 200, speed: 300 },
+  
   // 경험치 설정 (레벨 50+ 대응)
   XP: {
-    base: 20,        // 레벨 1 -> 2 필요량
-    increase: 15,    // 레벨당 가산량
-    multiplier: 1.05 // 레벨당 승수 (후반부 급증 방지용)
+    base: 20,
+    increase: 15,
+    multiplier: 1.05
   },
-  };
+};
+
 export const ABILITIES = [
-  // ... (능력 풀 유지)
-  { id: 'proj_count', name: '멀티샷', icon: '🔫', desc: '투사체 +1발 추가 발사', apply: (player) => { player.projectileCount = (player.projectileCount || 1) + 1; } },
-  { id: 'attack_speed', name: '속사', icon: '⚡', desc: '공격 속도 20% 증가', apply: (player) => { player.attackInterval *= 0.8; } },
-  { id: 'move_speed', name: '질풍', icon: '💨', desc: '이동 속도 15% 증가', apply: (player) => { player.speed *= 1.15; } },
-  { id: 'hp_up', name: '강인함', icon: '❤️', desc: '최대 HP +30, 현재 HP +30', apply: (player) => { player.maxHp += 30; player.hp = Math.min(player.hp + 30, player.maxHp); } },
-  { id: 'damage_up', name: '파괴력', icon: '💥', desc: '공격력 25% 증가', apply: (player) => { player.attackDamage *= 1.25; } },
-  { id: 'range_up', name: '저격수', icon: '🎯', desc: '공격 사거리 30% 증가', apply: (player) => { player.attackRange *= 1.3; } },
-  { id: 'pierce', name: '관통', icon: '🏹', desc: '투사체가 적을 관통함', apply: (player) => { player.pierce = (player.pierce || 0) + 1; } },
-  { id: 'regen', name: '재생', icon: '🌿', desc: '초당 2HP 회복', apply: (player) => { player.regen = (player.regen || 0) + 2; } },
-  { id: 'xp_magnet', name: '인력', icon: '🧲', desc: 'XP 오브 흡수 범위 50% 증가', apply: (player) => { player.xpMagnetBonus = (player.xpMagnetBonus || 0) + 0.5; } },
+  {
+    id: 'proj_count',
+    name: '멀티샷',
+    icon: '🔫',
+    desc: '투사체 +1발 추가 발사',
+    apply: (player) => { player.projectileCount = (player.projectileCount || 1) + 1; },
+  },
+  {
+    id: 'attack_speed',
+    name: '속사',
+    icon: '⚡',
+    desc: '공격 속도 20% 증가',
+    apply: (player) => { 
+      player.attackInterval = Math.max(0.05, player.attackInterval * 0.8); 
+    },
+  },
+  {
+    id: 'move_speed',
+    name: '질풍',
+    icon: '💨',
+    desc: '이동 속도 15% 증가',
+    apply: (player) => { 
+      player.speed = Math.min(600, player.speed * 1.15); 
+    },
+  },
+  {
+    id: 'hp_up',
+    name: '강인함',
+    icon: '❤️',
+    desc: '최대 HP +30, 현재 HP +30',
+    apply: (player) => { player.maxHp += 30; player.hp = Math.min(player.hp + 30, player.maxHp); },
+  },
+  {
+    id: 'damage_up',
+    name: '파괴력',
+    icon: '💥',
+    desc: '공격력 25% 증가',
+    apply: (player) => { player.attackDamage *= 1.25; },
+  },
+  {
+    id: 'range_up',
+    name: '저격수',
+    icon: '🎯',
+    desc: '공격 사거리 30% 증가',
+    apply: (player) => { player.attackRange *= 1.3; },
+  },
+  {
+    id: 'pierce',
+    name: '관통',
+    icon: '🏹',
+    desc: '투사체가 적을 관통함',
+    apply: (player) => { player.pierce = (player.pierce || 0) + 1; },
+  },
+  {
+    id: 'regen',
+    name: '재생',
+    icon: '🌿',
+    desc: '초당 2HP 회복',
+    apply: (player) => { player.regen = (player.regen || 0) + 2; },
+  },
+  {
+    id: 'xp_magnet',
+    name: '인력',
+    icon: '🧲',
+    desc: 'XP 오브 흡수 범위 50% 증가',
+    apply: (player) => { player.xpMagnetBonus = (player.xpMagnetBonus || 0) + 0.5; },
+  },
 ];
