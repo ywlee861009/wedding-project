@@ -43,14 +43,14 @@ export class SpawnSystem {
     
     // 40웨이브 종료 체크
     if (this.wave > CONFIG.WAVE.totalWaves) {
-      // 마지막 보스까지 잡아야 하므로 일단 웨이브만 멈춤
       return;
     }
 
-    this._waveScale = 1 + (this.wave - 1) * 0.25;
+    // 적 강화 배율 상향 (기존 0.25 -> 0.4)
+    this._waveScale = 1 + (this.wave - 1) * 0.4; 
     this._spawnInterval = Math.max(
       CONFIG.WAVE.spawnIntervalMin,
-      CONFIG.WAVE.spawnIntervalBase / (1 + (this.wave - 1) * 0.3)
+      CONFIG.WAVE.spawnIntervalBase / (1 + (this.wave - 1) * 0.4)
     );
 
     // 보스 웨이브 체크

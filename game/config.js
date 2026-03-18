@@ -56,9 +56,13 @@ export const CONFIG = {
   },
 
   XP_ORB: { size: 8, pickupRadius: 60, magnetRadius: 200, speed: 300 },
-  XP_TABLE: [0, 25, 60, 110, 180, 280, 400, 550, 750, 1000, 1300, 1700, 2200, 2800, 3500],
-};
-
+  // 경험치 설정 (레벨 50+ 대응)
+  XP: {
+    base: 20,        // 레벨 1 -> 2 필요량
+    increase: 15,    // 레벨당 가산량
+    multiplier: 1.05 // 레벨당 승수 (후반부 급증 방지용)
+  },
+  };
 export const ABILITIES = [
   // ... (능력 풀 유지)
   { id: 'proj_count', name: '멀티샷', icon: '🔫', desc: '투사체 +1발 추가 발사', apply: (player) => { player.projectileCount = (player.projectileCount || 1) + 1; } },
