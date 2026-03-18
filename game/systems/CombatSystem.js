@@ -15,7 +15,14 @@ export class CombatSystem {
 
         if (this._circles(proj.worldX, proj.worldY, proj.size,
                           enemy.worldX, enemy.worldY, enemy.size)) {
-          const dmg = proj.damage || 10;
+          let dmg = proj.damage || 10;
+          
+          // 치명타 체크
+          if (Math.random() < player.critChance) {
+            dmg *= 2;
+            // 치명타 시 적에게 더 강한 넉백과 히트 플래시를 주고 싶지만 일단 대미지만 2배
+          }
+
           // 투사체의 방향(proj.dx, proj.dy)을 넉백 방향으로 전달
           enemy.takeDamage(dmg, proj.dx, proj.dy); 
           proj.onHit(enemy);

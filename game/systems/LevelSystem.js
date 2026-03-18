@@ -19,7 +19,8 @@ export class LevelSystem {
   }
 
   addXP(amount) {
-    this.xp += amount;
+    const multiplier = this.game.player.xpMultiplier || 1.0;
+    this.xp += amount * multiplier;
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
       this._levelUp();

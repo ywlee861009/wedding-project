@@ -21,8 +21,13 @@ export class Player {
     this.attackInterval = base.attackInterval;
     this.projectileCount = 1;
     this.pierce = 0;
-    this.regen = 0;
+    this.regen = 1; // 0 -> 1 (기본 초당 1HP 회복)
     this.xpMagnetBonus = 0;
+    
+    // v1.0.5 신규 스탯
+    this.xpMultiplier = 1.0;
+    this.critChance = 0.0;
+    this.projSizeMultiplier = 1.0;
 
     // 공격 쿨다운
     this._attackTimer = 0;
@@ -140,20 +145,23 @@ export class Player {
 
     for (let i = 0; i < count; i++) {
       const a = angle + (i * spread) - offset;
-      projectiles.push(new Projectile(
+      const p = new Projectile(
         this.worldX, this.worldY,
         Math.cos(a), Math.sin(a),
         this.attackDamage,
         this.pierce,
         'player'
-      ));
+      );
+      // 거대화 배율 적용
+      p.size *= this.projSizeMultiplier || 1.0;
+      projectiles.push(p);
     }
   }
 
   takeDamage(dmg) {
     if (this.invincibleTimer > 0) return;
     this.hp -= dmg;
-    this.invincibleTimer = 0.25; // 0.5초에서 0.25초로 단축 (타이트한 생존)
+    this.invincibleTimer = 1.0; // 0.25 -> 1.0 (무적 시간 연장)
     if (this.hp < 0) this.hp = 0;
   }
 }

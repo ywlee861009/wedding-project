@@ -4,7 +4,7 @@ export const CONFIG = {
   VERSION: {
     major: 1,
     minor: 0,
-    patch: 4
+    patch: 7
   },
   CANVAS: { WIDTH: 800, HEIGHT: 600 },
   WORLD: { TILE_SIZE: 64 },
@@ -137,5 +137,19 @@ export const ABILITIES = [
     icon: '🧲',
     desc: 'XP 오브 흡수 범위 50% 증가',
     apply: (player) => { player.xpMagnetBonus = (player.xpMagnetBonus || 0) + 0.5; },
+  },
+  {
+    id: 'xp_boost',
+    name: '축복',
+    icon: '✨',
+    desc: '경험치 획득량 20% 증가',
+    apply: (player) => { player.xpMultiplier = (player.xpMultiplier || 1) + 0.2; },
+  },
+  {
+    id: 'crit_chance',
+    name: '치명타',
+    icon: '🎯',
+    desc: '치명타 확률 10% 증가 (2배 대미지)',
+    apply: (player) => { player.critChance = (player.critChance || 0) + 0.1; },
   },
 ];
