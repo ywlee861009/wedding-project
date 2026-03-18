@@ -62,9 +62,9 @@ export const CONFIG = {
   XP_ORB: { size: 8, pickupRadius: 60, magnetRadius: 220, speed: 300 },
   
   XP: {
-    base: 35,        // 15 -> 35 (성장 억제)
-    increase: 25,    // 12 -> 25 (성장 억제)
-    multiplier: 1.08 // 1.04 -> 1.08 (후반부 급증)
+    base: 15,        // 35 -> 15 (레벨업 가속)
+    increase: 10,    // 25 -> 10 (레벨업 가속)
+    multiplier: 1.03 // 1.08 -> 1.03 (완만한 성장)
   },
 };
 
