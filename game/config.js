@@ -3,8 +3,8 @@
 export const CONFIG = {
   VERSION: {
     major: 1,
-    minor: 0,
-    patch: 9
+    minor: 1,
+    patch: 1
   },
   CANVAS: { WIDTH: 800, HEIGHT: 600 },
   WORLD: { TILE_SIZE: 64 },
@@ -15,14 +15,8 @@ export const CONFIG = {
       asset: 'char_youngwoo.png', weddingAsset: 'char_youngwoo2.png'
     },
     moonhee: {
-      hp: 200, // 100 -> 200 상향
-      speed: 150, 
-      attackDamage: 40, 
-      attackRange: 280, 
-      attackInterval: 1.0, 
-      size: 40,
-      asset: 'char_moonhee.png', 
-      weddingAsset: 'char_moonhee2.png'
+      hp: 200, speed: 150, attackDamage: 40, attackRange: 280, attackInterval: 1.0, size: 40,
+      asset: 'char_moonhee.png', weddingAsset: 'char_moonhee2.png'
     },
   },
 
@@ -61,99 +55,29 @@ export const CONFIG = {
     baseDuration: 30,
     spawnIntervalBase: 2.2,
     spawnIntervalMin: 0.35,
-    enemyCountMultiplier: 1.15,
+    enemyCountMultiplier: 1.3, // 1.15 -> 1.3 (물량 증가)
     bossWaves: [10, 20, 30, 40],
   },
 
   XP_ORB: { size: 8, pickupRadius: 60, magnetRadius: 220, speed: 300 },
   
   XP: {
-    base: 15,
-    increase: 12,
-    multiplier: 1.04
+    base: 35,        // 15 -> 35 (성장 억제)
+    increase: 25,    // 12 -> 25 (성장 억제)
+    multiplier: 1.08 // 1.04 -> 1.08 (후반부 급증)
   },
 };
 
 export const ABILITIES = [
-  {
-    id: 'proj_count',
-    name: '멀티샷',
-    icon: '🔫',
-    desc: '투사체 +1발 추가 발사',
-    apply: (player) => { player.projectileCount = (player.projectileCount || 1) + 1; },
-  },
-  {
-    id: 'attack_speed',
-    name: '속사',
-    icon: '⚡',
-    desc: '공격 속도 20% 증가',
-    apply: (player) => { 
-      player.attackInterval = Math.max(0.05, player.attackInterval * 0.8); 
-    },
-  },
-  {
-    id: 'move_speed',
-    name: '질풍',
-    icon: '💨',
-    desc: '이동 속도 15% 증가',
-    apply: (player) => { 
-      player.speed = Math.min(600, player.speed * 1.15); 
-    },
-  },
-  {
-    id: 'hp_up',
-    name: '강인함',
-    icon: '❤️',
-    desc: '최대 HP +50, 현재 HP +50', // 30 -> 50 상향
-    apply: (player) => { player.maxHp += 50; player.hp = Math.min(player.hp + 50, player.maxHp); },
-  },
-  {
-    id: 'damage_up',
-    name: '파괴력',
-    icon: '💥',
-    desc: '공격력 25% 증가',
-    apply: (player) => { player.attackDamage *= 1.25; },
-  },
-  {
-    id: 'range_up',
-    name: '저격수',
-    icon: '🎯',
-    desc: '공격 사거리 30% 증가',
-    apply: (player) => { player.attackRange *= 1.3; },
-  },
-  {
-    id: 'pierce',
-    name: '관통',
-    icon: '🏹',
-    desc: '투사체가 적을 관통함',
-    apply: (player) => { player.pierce = (player.pierce || 0) + 1; },
-  },
-  {
-    id: 'regen',
-    name: '재생',
-    icon: '🌿',
-    desc: '초당 5HP 회복', // 2 -> 5 상향
-    apply: (player) => { player.regen = (player.regen || 0) + 5; },
-  },
-  {
-    id: 'xp_magnet',
-    name: '인력',
-    icon: '🧲',
-    desc: 'XP 오브 흡수 범위 50% 증가',
-    apply: (player) => { player.xpMagnetBonus = (player.xpMagnetBonus || 0) + 0.5; },
-  },
-  {
-    id: 'xp_boost',
-    name: '축복',
-    icon: '✨',
-    desc: '경험치 획득량 20% 증가',
-    apply: (player) => { player.xpMultiplier = (player.xpMultiplier || 1) + 0.2; },
-  },
-  {
-    id: 'crit_chance',
-    name: '치명타',
-    icon: '🎯',
-    desc: '치명타 확률 10% 증가 (2배 대미지)',
-    apply: (player) => { player.critChance = (player.critChance || 0) + 0.1; },
-  },
+  { id: 'proj_count', name: '멀티샷', icon: '🔫', desc: '투사체 +1발 추가 발사', apply: (player) => { player.projectileCount = (player.projectileCount || 1) + 1; } },
+  { id: 'attack_speed', name: '속사', icon: '⚡', desc: '공격 속도 20% 증가', apply: (player) => { player.attackInterval = Math.max(0.05, player.attackInterval * 0.8); } },
+  { id: 'move_speed', name: '질풍', icon: '💨', desc: '이동 속도 15% 증가', apply: (player) => { player.speed = Math.min(600, player.speed * 1.15); } },
+  { id: 'hp_up', name: '강인함', icon: '❤️', desc: '최대 HP +50, 현재 HP +50', apply: (player) => { player.maxHp += 50; player.hp = Math.min(player.hp + 50, player.maxHp); } },
+  { id: 'damage_up', name: '파괴력', icon: '💥', desc: '공격력 25% 증가', apply: (player) => { player.attackDamage *= 1.25; } },
+  { id: 'range_up', name: '저격수', icon: '🎯', desc: '공격 사거리 30% 증가', apply: (player) => { player.attackRange *= 1.3; } },
+  { id: 'pierce', name: '관통', icon: '🏹', desc: '투사체가 적을 관통함', apply: (player) => { player.pierce = (player.pierce || 0) + 1; } },
+  { id: 'regen', name: '재생', icon: '🌿', desc: '초당 5HP 회복', apply: (player) => { player.regen = (player.regen || 0) + 5; } },
+  { id: 'xp_magnet', name: '인력', icon: '🧲', desc: 'XP 오브 흡수 범위 50% 증가', apply: (player) => { player.xpMagnetBonus = (player.xpMagnetBonus || 0) + 0.5; } },
+  { id: 'xp_boost', name: '축복', icon: '✨', desc: '경험치 획득량 20% 증가', apply: (player) => { player.xpMultiplier = (player.xpMultiplier || 1) + 0.2; } },
+  { id: 'crit_chance', name: '치명타', icon: '🎯', desc: '치명타 확률 10% 증가 (2배 대미지)', apply: (player) => { player.critChance = (player.critChance || 0) + 0.1; } },
 ];

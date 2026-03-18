@@ -16,7 +16,10 @@ export class SpawnSystem {
   }
 
   update(dt) {
-    const game = this.game;
+    // 보스 웨이브이면 일반 스폰 중단 (보스와 1:1 집중)
+    if (CONFIG.WAVE.bossWaves.includes(this.wave)) {
+      return;
+    }
 
     // 웨이브 타이머
     this._waveTimer += dt;
@@ -25,12 +28,10 @@ export class SpawnSystem {
       this._nextWave();
     }
 
-    // 스폰
+    // 일반 스폰
     this._spawnTimer -= dt;
     if (this._spawnTimer <= 0) {
       this._spawnTimer = this._spawnInterval;
-      
-      // 한 번에 나오는 마리 수 조절 (난이도 하향)
       const count = Math.floor(1 + this.wave * 0.5); 
       for (let i = 0; i < count; i++) {
         this._spawnEnemy();
@@ -40,20 +41,16 @@ export class SpawnSystem {
 
   _nextWave() {
     this.wave++;
-    
-    // 40웨이브 종료 체크
-    if (this.wave > CONFIG.WAVE.totalWaves) {
-      return;
-    }
+    if (this.wave > CONFIG.WAVE.totalWaves) return;
 
-    // 적 강화 배율 상향 (기존 0.25 -> 0.4)
-    this._waveScale = 1 + (this.wave - 1) * 0.4; 
+    // 0.2 -> 0.5 (적들이 2.5배 더 빨리 강해짐)
+    this._waveScale = 1 + (this.wave - 1) * 0.5; 
     this._spawnInterval = Math.max(
       CONFIG.WAVE.spawnIntervalMin,
       CONFIG.WAVE.spawnIntervalBase / (1 + (this.wave - 1) * 0.4)
     );
 
-    // 보스 웨이브 체크
+    // 보스 웨이브 체크: 보스만 딱 1마리 스폰!
     if (CONFIG.WAVE.bossWaves.includes(this.wave)) {
       this._spawnBoss();
       this.game.showBossAlert();
@@ -62,14 +59,11 @@ export class SpawnSystem {
 
   _spawnEnemy() {
     const { worldX, worldY } = this.game.player;
-    const { width, height } = this.game.canvas;
     const margin = 80;
-
-    // 화면 외곽에서 스폰
     const side = Math.floor(Math.random() * 4);
     let ex, ey;
-    const hw = width / 2 + margin;
-    const hh = height / 2 + margin;
+    const hw = this.game.canvas.width / 2 + margin;
+    const hh = this.game.canvas.height / 2 + margin;
 
     switch (side) {
       case 0: ex = worldX + (Math.random() * 2 - 1) * hw; ey = worldY - hh; break;
@@ -78,16 +72,14 @@ export class SpawnSystem {
       default: ex = worldX - hw; ey = worldY + (Math.random() * 2 - 1) * hh; break;
     }
 
-    // 웨이브에 따라 등장 타입 비율 변경
     const type = this._pickType();
-    this.game.enemies.push(new Enemy(type, ex, ey, this._waveScale));
+    // 생성 시점의 웨이브(this.wave)를 5번째 인자로 넘깁니다.
+    this.game.enemies.push(new Enemy(type, ex, ey, this._waveScale, this.wave));
   }
 
   _pickType() {
     const w = this.wave;
     const r = Math.random();
-    
-    // 웨이브별 적 조합 (20종류 분산)
     if (w === 1) return 'solo_1';
     if (w === 2) return r < 0.6 ? 'solo_1' : 'solo_2';
     if (w === 3) return r < 0.4 ? 'solo_1' : r < 0.8 ? 'solo_2' : 'thief_1';
@@ -97,8 +89,6 @@ export class SpawnSystem {
     if (w === 7) return r < 0.4 ? 'guard_1' : r < 0.7 ? 'camera_1' : 'ex_1';
     if (w === 8) return r < 0.3 ? 'inviter_1' : r < 0.6 ? 'manager_1' : 'debt_1';
     if (w === 9) return r < 0.4 ? 'photog_1' : r < 0.7 ? 'wedding_dest' : 'solo_2';
-    
-    // 10웨이브 이후엔 무작위 엘리트 조합
     const elites = ['manager_1', 'debt_1', 'photog_1', 'wedding_dest', 'ex_1', 'guard_1'];
     return elites[Math.floor(Math.random() * elites.length)];
   }
@@ -108,14 +98,14 @@ export class SpawnSystem {
     const ex = worldX + (this.game.canvas.width / 2 + 100) * (Math.random() > 0.5 ? 1 : -1);
     const ey = worldY;
 
-    let bossType = 'priest_1';
-    if (this.wave >= 15) bossType = 'final_boss';
-    else if (this.wave >= 10) bossType = 'wedding_dest';
+    let bossType = 'priest_1'; // W10
+    if (this.wave === 20) bossType = 'manager_1';
+    else if (this.wave === 30) bossType = 'wedding_dest';
+    else if (this.wave === 40) bossType = 'final_boss';
 
-    this.game.enemies.push(new Enemy(bossType, ex, ey, this._waveScale));
+    this.game.enemies.push(new Enemy(bossType, ex, ey, this._waveScale, this.wave));
   }
 
-  // 적이 죽을 때 XP 오브 드롭 (외부에서 호출)
   dropXpOrb(enemy) {
     this.game.xpOrbs.push(new XpOrb(enemy.worldX, enemy.worldY, enemy.xp, enemy.gemColor));
   }

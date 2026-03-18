@@ -1,12 +1,13 @@
 import { CONFIG } from '../config.js';
 
 export class Enemy {
-  constructor(type, worldX, worldY, waveScale = 1) {
+  constructor(type, worldX, worldY, waveScale = 1, sourceWave = 0) {
     const base = CONFIG.ENEMY[type];
 
     this.type = type;
     this.worldX = worldX;
     this.worldY = worldY;
+    this.originWave = sourceWave; // 생성된 시점의 웨이브 저장 (보상용)
 
     this.maxHp = Math.floor(base.hp * waveScale);
     this.hp = this.maxHp;

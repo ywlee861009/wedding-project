@@ -137,8 +137,9 @@ class Game {
       const e = this.enemies[i];
       e.update(dt, this.player);
       if (e.dead) {
+        // 보스 격퇴 체크 (출생 웨이브 기준)
         if (e.pattern === 'boss') {
-          this._handleBossDefeat(this.spawnSystem.wave);
+          this._handleBossDefeat(e.originWave);
         }
         this.enemies.splice(i, 1);
       }
