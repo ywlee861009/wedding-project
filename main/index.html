@@ -4,29 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>케로와 친구들 - 생존 게임</title>
-  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
+    <!-- 상단 전체 경험치바 -->
+    <div id="xp-bar-full">
+      <div id="xp-bar-fill"></div>
+      <span id="xp-text-detail">0 / 100</span>
+    </div>
+
     <!-- HUD -->
     <div id="hud">
       <div id="hud-left">
-        <div id="hp-bar-container">
-          <span class="hud-label">HP</span>
-          <div id="hp-bar-bg">
-            <div id="hp-bar"></div>
-          </div>
-          <span id="hp-text">100/100</span>
-        </div>
-        <div id="xp-bar-container">
-          <span class="hud-label">XP</span>
-          <div id="xp-bar-bg">
-            <div id="xp-bar"></div>
-          </div>
-          <span id="level-text">Lv.1</span>
-        </div>
+        <div id="level-display">Lv.1</div>
       </div>
       <div id="hud-center">
         <div id="timer-display">00:00</div>
@@ -90,7 +83,7 @@
   </div>
 
   <!-- 버전 표시 -->
-  <div id="version-display">v1.0.0</div>
+  <div id="version-display">v1.1.5</div>
 
-  <script type="module" src="../game/main.js"></script></body>
+  <script type="module" src="game/main.js"></script></body>
 </html>

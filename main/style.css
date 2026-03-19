@@ -28,74 +28,61 @@ body {
   height: 100%;
 }
 
+/* ── 경험치바 (상단 전체) ── */
+#xp-bar-full {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  overflow: hidden;
+}
+
+#xp-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3498db, #74b9ff);
+  transition: width 0.15s ease-out;
+}
+
+#xp-text-detail {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: monospace;
+  text-shadow: 1px 1px 2px #000;
+  pointer-events: none;
+}
+
 /* ── HUD ── */
 #hud {
   position: absolute;
-  top: 0;
+  top: 24px; /* XP바 아래로 내림 */
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 10px 16px;
+  padding: 4px 16px;
   pointer-events: none;
   z-index: 10;
 }
 
 #hud-left {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 180px;
+  min-width: 80px;
 }
 
-#hp-bar-container,
-#xp-bar-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hud-label {
-  color: #fff;
-  font-size: 11px;
+#level-display {
+  color: #f1c40f;
+  font-size: 18px;
   font-weight: bold;
-  width: 20px;
-  text-shadow: 1px 1px 2px #000;
-}
-
-#hp-bar-bg,
-#xp-bar-bg {
-  width: 120px;
-  height: 10px;
-  background: rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-#hp-bar {
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(90deg, #e74c3c, #ff6b6b);
-  border-radius: 5px;
-  transition: width 0.2s ease;
-}
-
-#xp-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #3498db, #74b9ff);
-  border-radius: 5px;
-  transition: width 0.1s ease;
-}
-
-#hp-text,
-#level-text {
-  color: #fff;
-  font-size: 10px;
-  text-shadow: 1px 1px 2px #000;
-  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(241,196,15,0.5), 1px 1px 3px #000;
 }
 
 #hud-center {

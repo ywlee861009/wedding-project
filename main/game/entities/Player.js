@@ -33,7 +33,7 @@ export class Player {
     this._attackTimer = 0;
 
     this.image = new Image();
-    this.image.src = `../design/${base.asset}`;
+    this.image.src = `design/${base.asset}`;
 
     // 동료 시스템 (영우, 케로 등)
     this.companions = [];
@@ -41,6 +41,10 @@ export class Player {
     // 무적 시간 (피격 후 잠깐 무적)
     this.invincibleTimer = 0;
     this.facing = 1;
+
+    // 체력바 가시성 타이머 (체력 변경 시 1초간 표시)
+    this.hpTimer = 0;
+    this._lastHp = this.hp;
 
     // 애니메이션 상태
     this.isMoving = false;
@@ -68,12 +72,12 @@ export class Player {
   transformToWedding() {
     // 플레이어(문희) 변신
     const base = CONFIG.PLAYER[this.charType];
-    this.image.src = `../design/${base.weddingAsset}`;
+    this.image.src = `design/${base.weddingAsset}`;
     
     // 동료(영우) 변신
     const youngwoo = this.companions.find(c => c.type === 'youngwoo');
     if (youngwoo) {
-      youngwoo.image.src = `../design/${CONFIG.PLAYER.youngwoo.weddingAsset}`;
+      youngwoo.image.src = `design/${CONFIG.PLAYER.youngwoo.weddingAsset}`;
     }
   }
 
@@ -104,6 +108,15 @@ export class Player {
     });
 
     if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
+    
+    // 체력 변화 감지 및 타이머 업데이트
+    if (this.hp !== this._lastHp) {
+      this.hpTimer = 1.0; // 1초간 표시
+      this._lastHp = this.hp;
+    }
+    if (this.hpTimer > 0) {
+      this.hpTimer -= dt;
+    }
   }
 
   updateAttack(dt, enemies, projectiles) {
@@ -179,7 +192,7 @@ class Companion {
     this._attackTimer = 0;
 
     this.image = new Image();
-    this.image.src = `../design/${config.asset}`;
+    this.image.src = `design/${config.asset}`;
   }
 
   updateAttack(dt, enemies, projectiles) {

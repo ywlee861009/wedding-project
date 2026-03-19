@@ -202,6 +202,25 @@ export class RenderSystem {
     }
     ctx.restore();
 
+    // 플레이어 머리 위 체력바 (데미지/회복 시 1초간 표시)
+    if (player.hpTimer > 0) {
+      const barW = player.size * 2.5;
+      const barH = 6;
+      const barX = sx - barW / 2;
+      const barY = sy - player.size * 2 - 15;
+      
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      // 배경
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(barX, barY, barW, barH);
+      // 체력 (빨간색)
+      const hpPercent = Math.max(0, player.hp / player.maxHp);
+      ctx.fillStyle = '#ff3860';
+      ctx.fillRect(barX, barY, barW * hpPercent, barH);
+      ctx.restore();
+    }
+
     // 동료들 그리기 (영우, 케로 등)
     player.companions.forEach((c, idx) => {
       this._drawCompanion(ctx, c, camera, player.animTime + idx * 0.5);

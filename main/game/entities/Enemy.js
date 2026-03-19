@@ -21,7 +21,7 @@ export class Enemy {
 
     // 이미지 로드
     this.image = new Image();
-    this.image.src = `../design/${base.asset}`;
+    this.image.src = `design/${base.asset}`;
 
     this.dead = false;
     this.facing = 1;
