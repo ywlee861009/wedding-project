@@ -97,6 +97,7 @@ class Game {
     // 키보드 Esc로 일시정지 토글, S/Tab으로 상태창
     window.addEventListener('keydown', (e) => {
       if (this.state !== 'playing' && this.state !== 'levelup') return;
+      if (e.repeat) return; // 연속 입력 방지 (깜빡임 해결)
 
       if (e.key === 'Escape') {
         if (this.state === 'playing') this.togglePause(!this.isPaused);

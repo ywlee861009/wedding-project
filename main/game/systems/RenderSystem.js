@@ -3,8 +3,44 @@ import { CONFIG } from '../config.js';
 export class RenderSystem {
   constructor(game) {
     this.game = game;
-    // 배경 타일 패턴 색상
-    this._bgColors = ['#d4d4d4', '#c8c8c8'];
+    this._createBackgroundPattern();
+  }
+
+  // 고급스러운 대리석 예식장 바닥 패턴 생성
+  _createBackgroundPattern() {
+    const size = 128; // 타일 크기
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // 1. 기본 대리석 색상 (연한 아이보리/화이트)
+    ctx.fillStyle = '#fdfcf0';
+    ctx.fillRect(0, 0, size, size);
+
+    // 2. 미세한 대리석 질감 (노이즈)
+    for (let i = 0; i < 400; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const alpha = Math.random() * 0.05;
+      ctx.fillStyle = `rgba(200, 180, 150, ${alpha})`;
+      ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+
+    // 3. 타일 줄눈 (금색/베이지색 라인)
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.15)'; // 은은한 금색
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, size, size);
+
+    // 4. 모서리 포인트 (고급스러운 느낌)
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.2)';
+    const dotSize = 4;
+    ctx.fillRect(0, 0, dotSize, dotSize);
+    ctx.fillRect(size - dotSize, 0, dotSize, dotSize);
+    ctx.fillRect(0, size - dotSize, dotSize, dotSize);
+    ctx.fillRect(size - dotSize, size - dotSize, dotSize, dotSize);
+
+    this._bgPattern = this.game.ctx.createPattern(canvas, 'repeat');
   }
 
   render(dt) {
@@ -13,7 +49,7 @@ export class RenderSystem {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (state === 'start' || state === 'gameover') {
-      // HTML 화면이 담당
+      // 배경만 그리기
       this._drawBackground(ctx, canvas, camera);
       return;
     }
@@ -26,26 +62,14 @@ export class RenderSystem {
   }
 
   _drawBackground(ctx, canvas, camera) {
-    const tileSize = CONFIG.WORLD.TILE_SIZE;
-    const offsetX = ((-camera.x % tileSize) + tileSize) % tileSize;
-    const offsetY = ((-camera.y % tileSize) + tileSize) % tileSize;
-
-    const cols = Math.ceil(canvas.width / tileSize) + 2;
-    const rows = Math.ceil(canvas.height / tileSize) + 2;
-
-    for (let row = -1; row < rows; row++) {
-      for (let col = -1; col < cols; col++) {
-        const wx = col * tileSize + offsetX;
-        const wy = row * tileSize + offsetY;
-
-        // 월드 좌표로 색 결정 (체커보드)
-        const worldCol = Math.floor((wx + camera.x) / tileSize);
-        const worldRow = Math.floor((wy + camera.y) / tileSize);
-        const colorIdx = (worldCol + worldRow) % 2;
-        ctx.fillStyle = this._bgColors[colorIdx];
-        ctx.fillRect(wx, wy, tileSize, tileSize);
-      }
-    }
+    ctx.save();
+    // 카메라 좌표만큼 패턴 오프셋 적용 (음수 방향)
+    // 패턴 채우기는 월드 좌표계를 따라가도록 translate 사용
+    ctx.translate(-camera.x, -camera.y);
+    ctx.fillStyle = this._bgPattern;
+    // 화면 전체를 덮도록 월드 좌표 범위 지정
+    ctx.fillRect(camera.x, camera.y, canvas.width, canvas.height);
+    ctx.restore();
   }
 
   _drawXpOrbs(ctx, orbs, camera) {
