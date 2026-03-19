@@ -265,6 +265,9 @@ class Game {
   }
 
   _handleBossDefeat(wave) {
+    // 보스 처치 시 즉시 다음 웨이브(11, 21...)로 강제 전환
+    this.spawnSystem.startNextWave();
+
     if (wave === 10) {
       this.player.addCompanion('youngwoo');
       this._showFloatingText("신랑 영우 구출 성공!! (합류)");

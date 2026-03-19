@@ -16,16 +16,16 @@ export class SpawnSystem {
   }
 
   update(dt) {
-    // 보스 웨이브이면 일반 스폰 중단 (보스와 1:1 집중)
-    if (CONFIG.WAVE.bossWaves.includes(this.wave)) {
-      return;
-    }
-
-    // 웨이브 타이머
+    // 웨이브 타이머는 항상 진행 (보스전 중에도 다음 웨이브 준비)
     this._waveTimer += dt;
     if (this._waveTimer >= CONFIG.WAVE.baseDuration) {
-      this._waveTimer -= CONFIG.WAVE.baseDuration;
+      this._waveTimer = 0;
       this._nextWave();
+    }
+
+    // 보스 웨이브이면 일반 적 스폰만 중단
+    if (CONFIG.WAVE.bossWaves.includes(this.wave)) {
+      return;
     }
 
     // 일반 스폰
@@ -108,6 +108,12 @@ export class SpawnSystem {
     else if (this.wave === 40) bossType = 'final_boss';
 
     this.game.enemies.push(new Enemy(bossType, ex, ey, this._waveScale, this.wave));
+  }
+
+  // 보스 처치 후 즉시 다음 웨이브로 넘기기 위한 함수
+  startNextWave() {
+    this._waveTimer = 0;
+    this._nextWave();
   }
 
   dropXpOrb(enemy) {
