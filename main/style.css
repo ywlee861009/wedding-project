@@ -71,7 +71,7 @@ body {
   align-items: flex-start;
   padding: 4px 16px;
   pointer-events: none;
-  z-index: 10;
+  z-index: 30; /* 10 -> 30 (조이스틱 20보다 높게 설정) */
 }
 
 #hud-left {
