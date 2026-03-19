@@ -29,6 +29,9 @@ export class Player {
     this.critChance = 0.0;
     this.projSizeMultiplier = 1.0;
 
+    // 스킬 레벨 추적 (상태창 표시용)
+    this.skillLevels = {}; // { 'proj_count': 1, 'damage_up': 2, ... }
+
     // 공격 쿨다운
     this._attackTimer = 0;
 

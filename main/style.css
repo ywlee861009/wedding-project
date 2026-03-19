@@ -116,6 +116,119 @@ body {
   color: #fff;
   font-size: 12px;
   text-shadow: 1px 1px 2px #000;
+  margin-bottom: 4px;
+}
+
+#stat-btn {
+  pointer-events: auto;
+  background: rgba(0,0,0,0.4);
+  color: #f1c40f;
+  border: 1px solid #f1c40f;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+#stat-btn:hover {
+  background: rgba(241,196,15,0.2);
+}
+
+#stat-btn:active {
+  transform: scale(0.9);
+}
+
+/* ── 상태창 ── */
+#stat-screen {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 52;
+}
+
+#stat-screen.hidden { display: none; }
+
+#stat-inner {
+  background: rgba(20,20,40,0.95);
+  border: 2px solid #f1c40f;
+  border-radius: 16px;
+  padding: 30px;
+  width: 340px;
+  color: #fff;
+  text-align: center;
+}
+
+#stat-inner h2 {
+  font-size: 24px;
+  color: #f1c40f;
+  margin-bottom: 20px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 4px;
+}
+
+.stat-item span:last-child {
+  color: #f1c40f;
+  font-weight: bold;
+}
+
+#stat-inner h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #ccc;
+}
+
+#skill-list {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-bottom: 24px;
+  padding-right: 4px;
+}
+
+.skill-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.skill-lv {
+  background: #f1c40f;
+  color: #1a0a2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+#stat-close-btn {
+  background: #f1c40f;
+  color: #1a0a2e;
+  border: none;
+  padding: 10px 40px;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 /* ── 능력 선택 ── */

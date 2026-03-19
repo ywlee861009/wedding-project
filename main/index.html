@@ -27,6 +27,27 @@
       </div>
       <div id="hud-right">
         <div id="kill-count">처치: 0</div>
+        <button id="stat-btn">📊 상태</button>
+      </div>
+    </div>
+
+    <!-- 상태창 (Stats) -->
+    <div id="stat-screen" class="hidden">
+      <div id="stat-inner">
+        <h2>캐릭터 상태</h2>
+        <div class="stat-grid">
+          <div class="stat-item"><span>공격력</span><span id="stat-atk">0</span></div>
+          <div class="stat-item"><span>공격 속도</span><span id="stat-atk-speed">0</span></div>
+          <div class="stat-item"><span>이동 속도</span><span id="stat-spd">0</span></div>
+          <div class="stat-item"><span>사거리</span><span id="stat-rng">0</span></div>
+          <div class="stat-item"><span>투사체 수</span><span id="stat-proj">0</span></div>
+          <div class="stat-item"><span>관통력</span><span id="stat-pierce">0</span></div>
+        </div>
+        <h3>획득한 능력</h3>
+        <div id="skill-list">
+          <!-- 스킬들이 여기에 리스트업됨 -->
+        </div>
+        <button id="stat-close-btn">닫기</button>
       </div>
     </div>
 

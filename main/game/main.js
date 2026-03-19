@@ -76,6 +76,16 @@ class Game {
     document.getElementById('pause-screen').addEventListener('click', () => {
       this.togglePause(false);
     });
+
+    // 상태창 열기 버튼
+    document.getElementById('stat-btn').addEventListener('click', () => {
+      this.toggleStatScreen(true);
+    });
+
+    // 상태창 닫기 버튼
+    document.getElementById('stat-close-btn').addEventListener('click', () => {
+      this.toggleStatScreen(false);
+    });
   }
 
   _setupPauseEvents() {
@@ -84,10 +94,15 @@ class Game {
       if (this.state === 'playing') this.togglePause(true);
     });
 
-    // 키보드 Esc로 일시정지 토글
+    // 키보드 Esc로 일시정지 토글, S/Tab으로 상태창
     window.addEventListener('keydown', (e) => {
+      if (this.state !== 'playing' && this.state !== 'levelup') return;
+
       if (e.key === 'Escape') {
         if (this.state === 'playing') this.togglePause(!this.isPaused);
+      } else if (e.key === 's' || e.key === 'S' || e.key === 'Tab') {
+        e.preventDefault();
+        this.toggleStatScreen(!this._isStatOpen);
       }
     });
   }
@@ -99,6 +114,54 @@ class Game {
       el.classList.remove('hidden');
     } else {
       el.classList.add('hidden');
+    }
+  }
+
+  toggleStatScreen(open) {
+    this._isStatOpen = open;
+    const el = document.getElementById('stat-screen');
+    if (open) {
+      this._updateStatUI();
+      el.classList.remove('hidden');
+      this.isPaused = true; // 상태창 열면 일시정지
+    } else {
+      el.classList.add('hidden');
+      if (!document.getElementById('pause-screen').classList.contains('hidden')) {
+        // 이미 일시정지 화면이면 유지
+      } else {
+        this.isPaused = false;
+      }
+    }
+  }
+
+  _updateStatUI() {
+    const p = this.player;
+    if (!p) return;
+
+    // 기본 스탯
+    document.getElementById('stat-atk').textContent = Math.floor(p.attackDamage);
+    document.getElementById('stat-atk-speed').textContent = (1 / p.attackInterval).toFixed(1) + "/s";
+    document.getElementById('stat-spd').textContent = Math.floor(p.speed);
+    document.getElementById('stat-rng').textContent = Math.floor(p.attackRange);
+    document.getElementById('stat-proj').textContent = p.projectileCount;
+    document.getElementById('stat-pierce').textContent = p.pierce;
+
+    // 획득 스킬 리스트
+    const skillList = document.getElementById('skill-list');
+    skillList.innerHTML = '';
+    
+    Object.values(p.skillLevels).forEach(skill => {
+      const entry = document.createElement('div');
+      entry.className = 'skill-entry';
+      entry.innerHTML = `
+        <span>${skill.icon} ${skill.name}</span>
+        <span class="skill-lv">Lv.${skill.level}</span>
+      `;
+      skillList.appendChild(entry);
+    });
+
+    if (Object.keys(p.skillLevels).length === 0) {
+      skillList.innerHTML = '<div style="color:#666; margin-top:20px;">아직 획득한 능력이 없습니다.</div>';
     }
   }
 

@@ -24,7 +24,16 @@ export class AbilitySelect {
   }
 
   _pick(ability) {
-    ability.apply(this.game.player);
+    const player = this.game.player;
+    ability.apply(player);
+
+    // 스킬 레벨 기록 (상태창 표시용)
+    if (!player.skillLevels[ability.id]) {
+      player.skillLevels[ability.id] = { name: ability.name, level: 1, icon: ability.icon };
+    } else {
+      player.skillLevels[ability.id].level++;
+    }
+
     this._overlay.classList.add('hidden');
     this.game.resumeFromLevelUp();
   }
