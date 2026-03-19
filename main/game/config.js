@@ -4,7 +4,7 @@ export const CONFIG = {
   VERSION: {
     major: 1,
     minor: 1,
-    patch: 8
+    patch: 9
   },
   CANVAS: { WIDTH: 800, HEIGHT: 600 },
   WORLD: { TILE_SIZE: 64 },
@@ -59,7 +59,7 @@ export const CONFIG = {
     bossWaves: [10, 20, 30, 40],
   },
 
-  XP_ORB: { size: 8, pickupRadius: 60, magnetRadius: 220, speed: 300 },
+  XP_ORB: { size: 8, pickupRadius: 40, magnetRadius: 65, speed: 300 },
   
   XP: {
     base: 15,        // 35 -> 15 (레벨업 가속)
