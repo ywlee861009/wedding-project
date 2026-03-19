@@ -101,7 +101,7 @@ class Game {
 
       if (e.key === 'Escape') {
         if (this.state === 'playing') this.togglePause(!this.isPaused);
-      } else if (e.key === 's' || e.key === 'S' || e.key === 'Tab') {
+      } else if (e.key === 'c' || e.key === 'C' || e.key === 'Tab') {
         e.preventDefault();
         this.toggleStatScreen(!this._isStatOpen);
       }
