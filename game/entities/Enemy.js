@@ -11,7 +11,8 @@ export class Enemy {
 
     this.maxHp = Math.floor(base.hp * waveScale);
     this.hp = this.maxHp;
-    this.speed = base.speed * (1 + (waveScale - 1) * 0.2); // 속도는 완만하게 증가
+    // 속도 증가 계수 상향: 0.2 -> 0.28 (후반부에 더 빠르게 추격)
+    this.speed = base.speed * (1 + (waveScale - 1) * 0.28); 
     this.damage = Math.floor(base.damage * waveScale);
     this.xp = base.xp;
     this.size = base.size;
@@ -32,6 +33,10 @@ export class Enemy {
     
     // 피격 효과
     this.hitFlash = 0;
+    
+    // 넉백 저항: 웨이브가 높을수록 넉백을 덜 받음 (최대 85%)
+    this.knockbackResistance = Math.min(0.85, (waveScale - 1) * 0.03);
+    if (this.pattern === 'boss') this.knockbackResistance = 0.9;
   }
 
   update(dt, player) {
@@ -138,10 +143,12 @@ export class Enemy {
     this.hp -= validDmg;
     this.hitFlash = 0.12;
 
-    // 넉백 (Knockback) 효과 대폭 강화
-    const knockbackForce = this.pattern === 'boss' ? 10 : 40; // 15 -> 40으로 강화
-    this.worldX += kx * knockbackForce;
-    this.worldY += ky * knockbackForce;
+    // 넉백 (Knockback) 효과: 저항력 적용
+    const baseForce = 40;
+    const finalForce = baseForce * (1 - (this.knockbackResistance || 0));
+    
+    this.worldX += kx * finalForce;
+    this.worldY += ky * finalForce;
 
     if (this.hp <= 0) {
       this.hp = 0;

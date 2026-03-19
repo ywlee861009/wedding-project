@@ -32,7 +32,8 @@ export class SpawnSystem {
     this._spawnTimer -= dt;
     if (this._spawnTimer <= 0) {
       this._spawnTimer = this._spawnInterval;
-      const count = Math.floor(1 + this.wave * 0.5); 
+      // 20웨이브 이후부터 물량이 급격히 증가
+      const count = Math.floor(1 + this.wave * 0.5 + Math.max(0, this.wave - 20) * 1.5); 
       for (let i = 0; i < count; i++) {
         this._spawnEnemy();
       }
@@ -43,8 +44,11 @@ export class SpawnSystem {
     this.wave++;
     if (this.wave > CONFIG.WAVE.totalWaves) return;
 
-    // 0.2 -> 0.5 (적들이 2.5배 더 빨리 강해짐)
-    this._waveScale = 1 + (this.wave - 1) * 0.5; 
+    // 15웨이브 이후부터는 난이도가 더 가파르게 상승 (레벨 30 부근 대비)
+    const baseScale = 1 + (this.wave - 1) * 0.5;
+    const spike = Math.pow(Math.max(0, this.wave - 15), 1.2) * 0.6;
+    this._waveScale = baseScale + spike; 
+
     this._spawnInterval = Math.max(
       CONFIG.WAVE.spawnIntervalMin,
       CONFIG.WAVE.spawnIntervalBase / (1 + (this.wave - 1) * 0.4)
