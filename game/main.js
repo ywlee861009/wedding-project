@@ -17,6 +17,7 @@ class Game {
     this.selectedChar = 'moonhee'; // 기본 캐릭터 문희로 설정
     this.elapsedTime = 0;
     this.killCount = 0;
+    this.isPaused = false;
 
     // 엔티티 풀
     this.player = null;
@@ -41,6 +42,7 @@ class Game {
 
     this._displayVersion();
     this._bindUI();
+    this._setupPauseEvents();
 
     this._lastTime = null;
     requestAnimationFrame((t) => this._loop(t));
@@ -69,6 +71,35 @@ class Game {
       document.getElementById('start-screen').style.display = 'flex';
       this.state = 'start';
     });
+
+    // 일시정지 해제 (화면 클릭)
+    document.getElementById('pause-screen').addEventListener('click', () => {
+      this.togglePause(false);
+    });
+  }
+
+  _setupPauseEvents() {
+    // 포커스 잃으면 자동 일시정지
+    window.addEventListener('blur', () => {
+      if (this.state === 'playing') this.togglePause(true);
+    });
+
+    // 키보드 Esc로 일시정지 토글
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.state === 'playing') this.togglePause(!this.isPaused);
+      }
+    });
+  }
+
+  togglePause(force) {
+    this.isPaused = (force !== undefined) ? force : !this.isPaused;
+    const el = document.getElementById('pause-screen');
+    if (this.isPaused) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
   }
 
   _startGame() {
@@ -88,6 +119,8 @@ class Game {
     this.hud.reset();
 
     this.state = 'playing';
+    this.isPaused = false;
+    document.getElementById('pause-screen').classList.add('hidden');
   }
 
   _loop(timestamp) {
@@ -95,7 +128,7 @@ class Game {
     const dt = Math.min((timestamp - this._lastTime) / 1000, 0.1);
     this._lastTime = timestamp;
 
-    if (this.state === 'playing') {
+    if (this.state === 'playing' && !this.isPaused) {
       this._update(dt);
     }
 

@@ -4,7 +4,7 @@ export const CONFIG = {
   VERSION: {
     major: 1,
     minor: 1,
-    patch: 3
+    patch: 4
   },
   CANVAS: { WIDTH: 800, HEIGHT: 600 },
   WORLD: { TILE_SIZE: 64 },

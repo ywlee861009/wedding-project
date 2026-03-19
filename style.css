@@ -257,6 +257,44 @@ body {
   box-shadow: 0 6px 20px rgba(231,76,60,0.5);
 }
 
+/* ── 일시정지 화면 ── */
+#pause-screen {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 55;
+  backdrop-filter: blur(4px);
+}
+
+#pause-screen.hidden { display: none; }
+
+#pause-inner {
+  text-align: center;
+  color: #fff;
+  animation: pulse 2s infinite;
+}
+
+#pause-inner h1 {
+  font-size: 64px;
+  letter-spacing: 8px;
+  margin-bottom: 10px;
+  text-shadow: 0 0 20px rgba(255,255,255,0.5);
+}
+
+#pause-inner p {
+  font-size: 18px;
+  color: #ccc;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
 /* ── 시작 화면 ── */
 #start-screen {
   position: absolute;
